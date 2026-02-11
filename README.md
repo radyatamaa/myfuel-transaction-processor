@@ -2,7 +2,7 @@
 
 This service handles fuel transactions from petrol station webhooks.
 
-Project structure uses a clean layered style (inspired by `populix-chatbot`):
+Project structure uses a clean layered style:
 - `controllers`
 - `core` (entities, dtos, abstracts)
 - `frameworks` (technical implementations, data services)
