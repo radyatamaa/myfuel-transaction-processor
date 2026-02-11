@@ -22,6 +22,14 @@ async function bootstrap(): Promise<void> {
     .setTitle('MyFuel Transaction Processor')
     .setDescription('Step-by-step implementation')
     .setVersion('1.0.0-step-4')
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-api-key',
+        in: 'header'
+      },
+      'api-key'
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);

@@ -40,6 +40,7 @@ Project structure uses a clean layered style:
 - Global validation pipe and global exception filter.
 - Request correlation with `x-request-id` on every request.
 - Basic request logging (method, path, status, duration, request id).
+- Webhook API key guard for transaction endpoint (`x-api-key`).
 
 ## Project Structure
 
@@ -129,6 +130,7 @@ Response:
 ### Webhook Transaction
 
 - `POST /webhooks/transactions`
+- Header: `x-api-key: <your-key>` (required when `WEBHOOK_API_KEY` is set)
 
 Request body:
 
@@ -219,3 +221,4 @@ Pipeline runs:
 - Approved write flow runs inside one transaction boundary (`runInTransaction`).
 - Concurrency guard uses row lock (`FOR UPDATE`) for card and organization during final validation + write.
 - Middleware adds `x-request-id` if caller does not send one.
+- `WEBHOOK_API_KEY` enables API key protection for `POST /webhooks/transactions`.

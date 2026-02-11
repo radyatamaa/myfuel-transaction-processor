@@ -1,5 +1,6 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { WebhookApiKeyGuard } from 'src/configuration/guards/webhook-api-key.guard';
 import { ProcessTransactionDto, WebhookResponseDto } from 'src/core/dtos';
 import { TransactionUseCases } from 'src/use-cases/transaction/transaction.use-case';
 
@@ -19,6 +20,8 @@ export class WebhookController {
 
   @Post('transactions')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(WebhookApiKeyGuard)
+  @ApiSecurity('api-key')
   @ApiOperation({ summary: 'Validate and process fuel transaction webhook' })
   @ApiBody({ type: ProcessTransactionDto })
   @ApiResponse({ status: 200, type: WebhookResponseDto })
