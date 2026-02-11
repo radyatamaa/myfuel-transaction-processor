@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, RejectionReason as PrismaRejectionReason, TransactionStatus as PrismaTransactionStatus } from '@prisma/client';
 import {
+  IBalanceLedgerRepository,
   CardUsageSnapshot,
+  CreateBalanceLedgerInput,
   CreateTransactionInput,
   ICardRepository,
   IDataServices,
@@ -9,7 +11,9 @@ import {
   ITransactionRepository
 } from 'src/core/abstracts';
 import {
+  BalanceLedger,
   Card,
+  BalanceLedgerType,
   Organization,
   RejectionReason,
   Transaction,
@@ -252,11 +256,42 @@ class MysqlTransactionRepository implements ITransactionRepository {
   }
 }
 
+class MysqlBalanceLedgerRepository implements IBalanceLedgerRepository {
+  constructor(private readonly db: DbClient) {}
+
+  async create(input: CreateBalanceLedgerInput): Promise<BalanceLedger> {
+    const row = await this.db.balanceLedger.create({
+      data: {
+        organizationId: input.organizationId,
+        type: input.type,
+        amount: input.amount,
+        beforeBalance: input.beforeBalance,
+        afterBalance: input.afterBalance,
+        referenceType: input.referenceType,
+        referenceId: input.referenceId
+      }
+    });
+
+    return {
+      id: row.id,
+      organizationId: row.organizationId,
+      type: row.type as BalanceLedgerType,
+      amount: row.amount.toString(),
+      beforeBalance: row.beforeBalance.toString(),
+      afterBalance: row.afterBalance.toString(),
+      referenceType: row.referenceType,
+      referenceId: row.referenceId,
+      createdAt: row.createdAt
+    };
+  }
+}
+
 function createDataServices(db: DbClient): IDataServices {
   return {
     cards: new MysqlCardRepository(db),
     organizations: new MysqlOrganizationRepository(db),
     transactions: new MysqlTransactionRepository(db),
+    ledgers: new MysqlBalanceLedgerRepository(db),
     runInTransaction: async <T>(_callback: (tx: IDataServices) => Promise<T>): Promise<T> => {
       throw new Error('Nested transaction is not supported in this scaffold');
     }
@@ -268,11 +303,13 @@ export class MysqlDataServicesService implements IDataServices {
   readonly cards: ICardRepository;
   readonly organizations: IOrganizationRepository;
   readonly transactions: ITransactionRepository;
+  readonly ledgers: IBalanceLedgerRepository;
 
   constructor(private readonly prisma: PrismaService) {
     this.cards = new MysqlCardRepository(prisma);
     this.organizations = new MysqlOrganizationRepository(prisma);
     this.transactions = new MysqlTransactionRepository(prisma);
+    this.ledgers = new MysqlBalanceLedgerRepository(prisma);
   }
 
   async runInTransaction<T>(callback: (tx: IDataServices) => Promise<T>): Promise<T> {

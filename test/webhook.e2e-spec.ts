@@ -23,6 +23,9 @@ type MockDataServices = {
     createApproved: jest.Mock;
     createRejected: jest.Mock;
   };
+  ledgers: {
+    create: jest.Mock;
+  };
   runInTransaction: jest.Mock;
 };
 
@@ -41,6 +44,9 @@ function createMockDataServices(): MockDataServices {
       findByRequestId: jest.fn(),
       createApproved: jest.fn(),
       createRejected: jest.fn()
+    },
+    ledgers: {
+      create: jest.fn()
     },
     runInTransaction: jest.fn()
   };

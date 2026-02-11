@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { IDataServices } from 'src/core/abstracts';
 import { ProcessTransactionDto, WebhookResponseDto } from 'src/core/dtos';
-import { RejectionReason, WebhookResponseStatus } from 'src/core/entities';
+import { BalanceLedgerType, RejectionReason, WebhookResponseStatus } from 'src/core/entities';
 
 @Injectable()
 export class TransactionUseCases {
@@ -12,7 +12,7 @@ export class TransactionUseCases {
     return {
       module: 'transaction',
       ready: true,
-      note: 'Step 9 validation + approved/rejected persistence flow ready'
+      note: 'Step 11 adds balance ledger persistence for approved flow'
     };
   }
 
@@ -98,6 +98,15 @@ export class TransactionUseCases {
 
         await tx.organizations.updateBalance(organization.id, newBalance);
         await tx.cards.addUsage(card.id, trxAt, amount);
+        await tx.ledgers.create({
+          organizationId: organization.id,
+          type: BalanceLedgerType.DEBIT,
+          amount,
+          beforeBalance: this.fromMinorUnits(balanceMinor),
+          afterBalance: newBalance,
+          referenceType: 'TRANSACTION',
+          referenceId: transaction.id
+        });
 
         return transaction;
       });

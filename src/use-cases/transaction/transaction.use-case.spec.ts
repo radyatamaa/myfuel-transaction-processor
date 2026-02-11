@@ -17,6 +17,9 @@ type MockDataServices = {
     createApproved: jest.Mock;
     createRejected: jest.Mock;
   };
+  ledgers: {
+    create: jest.Mock;
+  };
   runInTransaction: jest.Mock;
 };
 
@@ -44,6 +47,9 @@ describe('TransactionUseCases', () => {
         findByRequestId: jest.fn(),
         createApproved: jest.fn(),
         createRejected: jest.fn()
+      },
+      ledgers: {
+        create: jest.fn()
       },
       runInTransaction: jest.fn()
     };
@@ -171,5 +177,6 @@ describe('TransactionUseCases', () => {
     expect(dataServices.transactions.createApproved).toHaveBeenCalledTimes(1);
     expect(dataServices.organizations.updateBalance).toHaveBeenCalledTimes(1);
     expect(dataServices.cards.addUsage).toHaveBeenCalledTimes(1);
+    expect(dataServices.ledgers.create).toHaveBeenCalledTimes(1);
   });
 });

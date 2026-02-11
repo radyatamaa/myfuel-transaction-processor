@@ -15,6 +15,7 @@ Reference architecture style:
 8. Step 8 (done): atomic write flow for approved transaction.
 9. Step 9 (done): rejected persistence and unit tests for transaction use-case.
 10. Step 10 (done): global exception mapping and webhook e2e tests.
+11. Step 11 (done): balance ledger persistence for approved transactions.
 
 ## Step 2 Scope
 
@@ -143,8 +144,21 @@ Reference architecture style:
   - `test/jest-e2e.json`
   - run full e2e with `ENABLE_E2E_SOCKET=true npm run test:e2e`
 
+## Step 11 Scope
+
+- Added balance-ledger repository abstraction and data-services exposure:
+  - `src/core/abstracts/repositories.abstract.ts`
+  - `src/core/abstracts/data-services.abstract.ts`
+- Implemented ledger persistence in MySQL/Prisma data service:
+  - `src/frameworks/data-services/mysql/mysql-data-services.service.ts`
+- Added approved-flow ledger write in transaction use-case (same DB transaction boundary):
+  - `src/use-cases/transaction/transaction.use-case.ts`
+- Updated tests to include ledger repository mock:
+  - `src/use-cases/transaction/transaction.use-case.spec.ts`
+  - `test/webhook.e2e-spec.ts`
+
 ## Notes
 
 - Validation + approved write flow are implemented.
 - Rejected persistence for early failures without card context (e.g. card not found) is not stored yet.
-- Next step (Step 11): add balance ledger persistence and improve duplicate handling under high concurrency.
+- Next step (Step 12): add lightweight observability (structured logs + request correlation id) and tighten concurrency checks (optional row lock strategy).

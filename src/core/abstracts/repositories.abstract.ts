@@ -1,4 +1,11 @@
-import { Card, Organization, RejectionReason, Transaction } from 'src/core/entities';
+import {
+  BalanceLedger,
+  BalanceLedgerType,
+  Card,
+  Organization,
+  RejectionReason,
+  Transaction
+} from 'src/core/entities';
 
 export interface CardUsageSnapshot {
   dailyUsedAmount: string;
@@ -25,10 +32,24 @@ export interface CreateTransactionInput {
   trxAt: Date;
 }
 
+export interface CreateBalanceLedgerInput {
+  organizationId: string;
+  type: BalanceLedgerType;
+  amount: string;
+  beforeBalance: string;
+  afterBalance: string;
+  referenceType: string;
+  referenceId: string;
+}
+
 export abstract class ITransactionRepository {
   abstract findByRequestId(requestId: string): Promise<Transaction | null>;
   abstract createApproved(input: CreateTransactionInput): Promise<Transaction>;
   abstract createRejected(
     input: CreateTransactionInput & { rejectionReason: RejectionReason }
   ): Promise<Transaction>;
+}
+
+export abstract class IBalanceLedgerRepository {
+  abstract create(input: CreateBalanceLedgerInput): Promise<BalanceLedger>;
 }
