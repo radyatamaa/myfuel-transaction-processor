@@ -24,7 +24,8 @@ function createDataServices(db: DbClient): IDataServices {
     transactions: new PrismaTransactionRepository(db),
     ledgers: new PrismaBalanceLedgerRepository(db),
     rejectionLogs: new PrismaWebhookRejectionLogRepository(db),
-    runInTransaction: async <T>(_callback: (tx: IDataServices) => Promise<T>): Promise<T> => {
+    runInTransaction: async <T>(callback: (tx: IDataServices) => Promise<T>): Promise<T> => {
+      void callback;
       throw new Error('Nested transaction is not supported');
     }
   };
