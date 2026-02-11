@@ -32,7 +32,7 @@ export class TransactionUseCases {
         'Duplicate requestId'
       );
       await this.trackRejection(payload, result);
-      await this.publishResult(payload, result);
+      await this.publishResultSafely(payload, result);
       return result;
     }
 
@@ -44,7 +44,7 @@ export class TransactionUseCases {
         'Card not found or inactive'
       );
       await this.trackRejection(payload, result);
-      await this.publishResult(payload, result);
+      await this.publishResultSafely(payload, result);
       return result;
     }
 
@@ -56,7 +56,7 @@ export class TransactionUseCases {
         'Organization not found'
       );
       await this.trackRejection(payload, result);
-      await this.publishResult(payload, result);
+      await this.publishResultSafely(payload, result);
       return result;
     }
 
@@ -69,6 +69,26 @@ export class TransactionUseCases {
         await tx.cards.lockById(card.id);
         await tx.organizations.lockById(organization.id);
 
+        const lockedCard = await tx.cards.findById(card.id);
+        if (!lockedCard || !lockedCard.isActive) {
+          const rejectedTransaction = await tx.transactions.createRejected({
+            requestId: payload.requestId,
+            organizationId: organization.id,
+            cardId: card.id,
+            stationId: payload.stationId,
+            amount,
+            trxAt,
+            rejectionReason: RejectionReason.CARD_NOT_FOUND
+          });
+
+          return this.factory.buildRejectedWithTransactionId(
+            payload.requestId,
+            RejectionReason.CARD_NOT_FOUND,
+            'Card not found or inactive',
+            rejectedTransaction.id
+          );
+        }
+
         const lockedOrganization = await tx.organizations.findById(organization.id);
         if (!lockedOrganization) {
           return this.factory.buildRejected(
@@ -80,8 +100,8 @@ export class TransactionUseCases {
 
         const usage = await tx.cards.getUsageSnapshot(card.id, trxAt);
         const balanceMinor = this.factory.toMinorUnits(lockedOrganization.currentBalance);
-        const dailyLimitMinor = this.factory.toMinorUnits(card.dailyLimit);
-        const monthlyLimitMinor = this.factory.toMinorUnits(card.monthlyLimit);
+        const dailyLimitMinor = this.factory.toMinorUnits(lockedCard.dailyLimit);
+        const monthlyLimitMinor = this.factory.toMinorUnits(lockedCard.monthlyLimit);
         const dailyUsedMinor = this.factory.toMinorUnits(usage.dailyUsedAmount);
         const monthlyUsedMinor = this.factory.toMinorUnits(usage.monthlyUsedAmount);
 
@@ -169,7 +189,7 @@ export class TransactionUseCases {
         return this.factory.buildApproved(payload.requestId, transaction.id);
       });
 
-      await this.publishResult(payload, result, {
+      await this.publishResultSafely(payload, result, {
         cardId: card.id,
         organizationId: organization.id,
         amount
@@ -190,7 +210,7 @@ export class TransactionUseCases {
           'Duplicate requestId'
         );
         await this.trackRejection(payload, result);
-        await this.publishResult(payload, result);
+        await this.publishResultSafely(payload, result);
         return result;
       }
 
@@ -254,6 +274,18 @@ export class TransactionUseCases {
       await this.eventPublisher.publishRejected(
         this.factory.buildRejectedEvent(payload, result, context)
       );
+    }
+  }
+
+  private async publishResultSafely(
+    payload: ProcessTransactionDto,
+    result: WebhookResponseDto,
+    context?: { organizationId?: string; cardId?: string; amount?: string }
+  ): Promise<void> {
+    try {
+      await this.publishResult(payload, result, context);
+    } catch {
+      // Best-effort event publishing. Business transaction response should not fail.
     }
   }
 }

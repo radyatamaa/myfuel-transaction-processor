@@ -48,6 +48,27 @@ function mapRejectionReason(reason: PrismaRejectionReason | null): RejectionReas
 class MysqlCardRepository implements ICardRepository {
   constructor(private readonly db: DbClient) {}
 
+  async findById(id: string): Promise<Card | null> {
+    const row = await this.db.card.findUnique({
+      where: { id }
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      organizationId: row.organizationId,
+      cardNumber: row.cardNumber,
+      dailyLimit: row.dailyLimit.toString(),
+      monthlyLimit: row.monthlyLimit.toString(),
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt
+    };
+  }
+
   async findByCardNumber(cardNumber: string): Promise<Card | null> {
     const row = await this.db.card.findUnique({
       where: { cardNumber }

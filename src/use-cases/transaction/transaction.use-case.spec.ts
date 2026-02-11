@@ -5,6 +5,7 @@ import { TransactionFactoryService } from './transaction-factory.service';
 
 type MockDataServices = {
   cards: {
+    findById: jest.Mock;
     findByCardNumber: jest.Mock;
     getUsageSnapshot: jest.Mock;
     addUsage: jest.Mock;
@@ -41,6 +42,7 @@ describe('TransactionUseCases', () => {
   function createMockDataServices(): MockDataServices {
     const dataServices: MockDataServices = {
       cards: {
+        findById: jest.fn(),
         findByCardNumber: jest.fn(),
         getUsageSnapshot: jest.fn(),
         addUsage: jest.fn(),
@@ -111,6 +113,16 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
+    dataServices.cards.findById.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: payload.cardNumber,
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
     dataServices.organizations.findById.mockResolvedValue({
       id: 'org-1',
       name: 'Org',
@@ -149,6 +161,16 @@ describe('TransactionUseCases', () => {
     const dataServices = createMockDataServices();
     dataServices.transactions.findByRequestId.mockResolvedValue(null);
     dataServices.cards.findByCardNumber.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: payload.cardNumber,
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    dataServices.cards.findById.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -212,6 +234,16 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
+    dataServices.cards.findById.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: payload.cardNumber,
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
     dataServices.organizations.findById.mockResolvedValue({
       id: 'org-1',
       name: 'Org',
@@ -245,5 +277,57 @@ describe('TransactionUseCases', () => {
 
     expect(eventPublisher.publishApproved).toHaveBeenCalledTimes(1);
     expect(eventPublisher.publishRejected).not.toHaveBeenCalled();
+  });
+
+  it('returns rejected when card becomes inactive after lock', async () => {
+    const dataServices = createMockDataServices();
+    dataServices.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.cards.findByCardNumber.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: payload.cardNumber,
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    dataServices.organizations.findById.mockResolvedValue({
+      id: 'org-1',
+      name: 'Org',
+      currentBalance: '500.00',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    dataServices.cards.findById.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: payload.cardNumber,
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    dataServices.transactions.createRejected.mockResolvedValue({
+      id: 'trx-rejected',
+      requestId: payload.requestId,
+      organizationId: 'org-1',
+      cardId: 'card-1',
+      stationId: payload.stationId,
+      amount: '100.00',
+      trxAt: new Date(payload.transactionAt),
+      status: TransactionStatus.REJECTED,
+      rejectionReason: RejectionReason.CARD_NOT_FOUND,
+      createdAt: new Date()
+    });
+
+    const useCase = new TransactionUseCases(dataServices as unknown as IDataServices, new TransactionFactoryService());
+    const result = await useCase.process(payload);
+
+    expect(result.status).toBe(WebhookResponseStatus.REJECTED);
+    expect(result.reason).toBe(RejectionReason.CARD_NOT_FOUND);
+    expect(result.transactionId).toBe('trx-rejected');
+    expect(dataServices.cards.getUsageSnapshot).not.toHaveBeenCalled();
   });
 });

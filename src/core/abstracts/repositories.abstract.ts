@@ -13,6 +13,7 @@ export interface CardUsageSnapshot {
 }
 
 export abstract class ICardRepository {
+  abstract findById(id: string): Promise<Card | null>;
   abstract findByCardNumber(cardNumber: string): Promise<Card | null>;
   abstract getUsageSnapshot(cardId: string, trxAt: Date): Promise<CardUsageSnapshot>;
   abstract addUsage(cardId: string, trxAt: Date, amount: string): Promise<void>;

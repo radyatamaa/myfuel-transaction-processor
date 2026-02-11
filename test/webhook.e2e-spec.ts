@@ -10,6 +10,7 @@ import { TransactionUseCases } from '../src/use-cases/transaction/transaction.us
 
 type MockDataServices = {
   cards: {
+    findById: jest.Mock;
     findByCardNumber: jest.Mock;
     getUsageSnapshot: jest.Mock;
     addUsage: jest.Mock;
@@ -37,6 +38,7 @@ type MockDataServices = {
 function createMockDataServices(): MockDataServices {
   const dataServices: MockDataServices = {
     cards: {
+      findById: jest.fn(),
       findByCardNumber: jest.fn(),
       getUsageSnapshot: jest.fn(),
       addUsage: jest.fn(),
@@ -151,6 +153,16 @@ describeE2E('WebhookController (e2e)', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
+    dataServices.cards.findById.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: '6037991234561001',
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
     dataServices.organizations.findById.mockResolvedValue({
       id: 'org-1',
       name: 'Org',
@@ -195,6 +207,16 @@ describeE2E('WebhookController (e2e)', () => {
   it('POST /api/v1/webhooks/transactions returns rejected on insufficient balance', async () => {
     dataServices.transactions.findByRequestId.mockResolvedValue(null);
     dataServices.cards.findByCardNumber.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: '6037991234561001',
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    dataServices.cards.findById.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: '6037991234561001',
