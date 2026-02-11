@@ -1,6 +1,7 @@
 import { IDataServices, ITransactionEventPublisher } from '../../core/abstracts';
 import { RejectionReason, TransactionStatus, WebhookResponseStatus } from '../../core/entities';
 import { TransactionUseCases } from './transaction.use-case';
+import { TransactionFactoryService } from './transaction-factory.service';
 
 type MockDataServices = {
   cards: {
@@ -82,7 +83,7 @@ describe('TransactionUseCases', () => {
       createdAt: new Date()
     });
 
-    const useCase = new TransactionUseCases(dataServices as unknown as IDataServices);
+    const useCase = new TransactionUseCases(dataServices as unknown as IDataServices, new TransactionFactoryService());
     const result = await useCase.process(payload);
 
     expect(result.status).toBe(WebhookResponseStatus.REJECTED);
@@ -127,7 +128,7 @@ describe('TransactionUseCases', () => {
       createdAt: new Date()
     });
 
-    const useCase = new TransactionUseCases(dataServices as unknown as IDataServices);
+    const useCase = new TransactionUseCases(dataServices as unknown as IDataServices, new TransactionFactoryService());
     const result = await useCase.process(payload);
 
     expect(result.status).toBe(WebhookResponseStatus.REJECTED);
@@ -173,7 +174,7 @@ describe('TransactionUseCases', () => {
       createdAt: new Date()
     });
 
-    const useCase = new TransactionUseCases(dataServices as unknown as IDataServices);
+    const useCase = new TransactionUseCases(dataServices as unknown as IDataServices, new TransactionFactoryService());
     const result = await useCase.process(payload);
 
     expect(result.status).toBe(WebhookResponseStatus.APPROVED);
@@ -228,6 +229,7 @@ describe('TransactionUseCases', () => {
 
     const useCase = new TransactionUseCases(
       dataServices as unknown as IDataServices,
+      new TransactionFactoryService(),
       eventPublisher
     );
     await useCase.process(payload);
