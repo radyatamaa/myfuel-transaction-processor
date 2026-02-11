@@ -20,8 +20,8 @@ async function bootstrap(): Promise<void> {
 
   const config = new DocumentBuilder()
     .setTitle('MyFuel Transaction Processor')
-    .setDescription('Step-by-step implementation')
-    .setVersion('1.0.0-step-4')
+    .setDescription('Fuel transaction webhook processing service')
+    .setVersion('1.0.0')
     .addApiKey(
       {
         type: 'apiKey',

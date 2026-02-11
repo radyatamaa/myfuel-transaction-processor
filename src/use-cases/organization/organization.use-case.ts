@@ -6,7 +6,7 @@ export class OrganizationUseCases {
     return {
       module: 'organization',
       ready: true,
-      note: 'Step 3 module wiring only'
+      note: 'Organization module is wired and ready'
     };
   }
 }

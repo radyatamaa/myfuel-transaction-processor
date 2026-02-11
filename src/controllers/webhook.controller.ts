@@ -13,7 +13,7 @@ export class WebhookController {
   status() {
     return {
       success: true,
-      step: 8,
+      version: '1.0.0',
       message: 'Webhook validation and atomic write flow are ready.'
     };
   }

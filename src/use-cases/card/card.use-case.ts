@@ -6,7 +6,7 @@ export class CardUseCases {
     return {
       module: 'card',
       ready: true,
-      note: 'Step 3 module wiring only'
+      note: 'Card module is wired and ready'
     };
   }
 }
