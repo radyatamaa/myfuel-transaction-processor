@@ -11,6 +11,7 @@ Reference architecture style:
 4. Step 4 (done): webhook DTO/entity contracts + Swagger/validation scaffold.
 5. Step 5 (done): Prisma data model + data-services repository contracts (scaffold only).
 6. Step 6 (done): Prisma client integration + read-only repository implementations.
+7. Step 7 (done): transaction validation flow in use-case (read-only, no write transaction).
 
 ## Step 2 Scope
 
@@ -88,8 +89,21 @@ Reference architecture style:
   - `findByRequestId` (transaction)
   - file: `src/frameworks/data-services/mysql/mysql-data-services.service.ts`
 
+## Step 7 Scope
+
+- Implemented use-case validation flow:
+  - duplicate request check
+  - card existence/active check
+  - organization existence check
+  - balance check
+  - daily/monthly limit check
+- Added money comparison helper using minor-units (`bigint`) to avoid float precision issues.
+- Updated webhook endpoint behavior:
+  - `POST /api/v1/webhooks/transactions` now returns validation result (`APPROVED` / `REJECTED`)
+  - still **no write/update** to database yet.
+
 ## Notes
 
-- No MyFuel transaction business rules yet (still placeholder response).
+- Validation rules are implemented in read-only mode.
 - Write operations for transaction processing are not implemented yet.
-- Next step (Step 7): implement transaction use-case validation flow using read repositories and structured domain errors.
+- Next step (Step 8): implement atomic write flow (create transaction, update balance, update usage counters) with DB transaction boundaries.

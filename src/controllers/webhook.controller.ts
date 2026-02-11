@@ -12,17 +12,17 @@ export class WebhookController {
   status() {
     return {
       success: true,
-      step: 4,
-      message: 'Webhook module wired. Contracts ready. No business logic yet.'
+      step: 7,
+      message: 'Webhook validation flow is ready (read-only).'
     };
   }
 
   @Post('transactions')
-  @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'Receive fuel transaction webhook (contract only)' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Validate fuel transaction webhook (no write yet)' })
   @ApiBody({ type: ProcessTransactionDto })
-  @ApiResponse({ status: 202, type: WebhookResponseDto })
-  processTransaction(@Body() body: ProcessTransactionDto): WebhookResponseDto {
-    return this.transactionUseCases.accept(body);
+  @ApiResponse({ status: 200, type: WebhookResponseDto })
+  async processTransaction(@Body() body: ProcessTransactionDto): Promise<WebhookResponseDto> {
+    return this.transactionUseCases.process(body);
   }
 }
