@@ -38,6 +38,13 @@ Project structure uses a clean layered style:
 - On rejected transaction (when card and organization are known):
   - save transaction (`REJECTED`) with `rejectionReason`
   - save rejection audit log (`WebhookRejectionLog`)
+- Rejection reasons:
+  - `CARD_NOT_FOUND`
+  - `ORGANIZATION_NOT_FOUND`
+  - `INSUFFICIENT_BALANCE`
+  - `DAILY_LIMIT_EXCEEDED`
+  - `MONTHLY_LIMIT_EXCEEDED`
+  - `DUPLICATE_REQUEST`
 - Global validation pipe and global exception filter.
 - Request correlation with `x-request-id` on every request.
 - Basic request logging (method, path, status, duration, request id).
@@ -144,6 +151,7 @@ Response:
 
 - `POST /webhooks/transactions`
 - Header: `x-api-key: <your-key>` (required when `WEBHOOK_API_KEY` is set)
+- In production (`NODE_ENV=production`), `WEBHOOK_API_KEY` is required at startup.
 
 Request body:
 
@@ -240,6 +248,9 @@ CI workflow:
 
 Pipeline runs:
 - install dependencies
+- lint
+- unit tests
+- e2e tests (`ENABLE_E2E_SOCKET=true`)
 - build
 
 ## Implementation Notes
@@ -250,5 +261,6 @@ Pipeline runs:
 - Concurrency guard uses row lock (`FOR UPDATE`) for card and organization during final validation + write.
 - Middleware adds `x-request-id` if caller does not send one.
 - `WEBHOOK_API_KEY` enables API key protection for `POST /webhooks/transactions`.
+- The app fails startup in production when `WEBHOOK_API_KEY` is empty.
 - Use-case publishes transaction events through event publisher abstraction.
 - Rejection auditing uses best-effort write to `WebhookRejectionLog`.
