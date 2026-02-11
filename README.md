@@ -10,6 +10,7 @@ Reference architecture style:
 3. Step 3 (done): config/env + module wiring placeholders for transaction/organization/card.
 4. Step 4 (done): webhook DTO/entity contracts + Swagger/validation scaffold.
 5. Step 5 (done): Prisma data model + data-services repository contracts (scaffold only).
+6. Step 6 (done): Prisma client integration + read-only repository implementations.
 
 ## Step 2 Scope
 
@@ -74,8 +75,21 @@ Reference architecture style:
 - Added Prisma scripts and dependency declarations:
   - `package.json`
 
+## Step 6 Scope
+
+- Added Prisma runtime service:
+  - `src/frameworks/data-services/mysql/prisma.service.ts`
+- Integrated Prisma service to data-services module:
+  - `src/frameworks/data-services/mysql/mysql-data-services.module.ts`
+- Implemented read-only repository methods (no write business logic yet):
+  - `findByCardNumber`
+  - `getUsageSnapshot`
+  - `findById` (organization)
+  - `findByRequestId` (transaction)
+  - file: `src/frameworks/data-services/mysql/mysql-data-services.service.ts`
+
 ## Notes
 
 - No MyFuel transaction business rules yet (still placeholder response).
-- Repository methods are intentionally not implemented (contract scaffold only).
-- Next step (Step 6): implement Prisma client integration and read-only repository queries.
+- Write operations for transaction processing are not implemented yet.
+- Next step (Step 7): implement transaction use-case validation flow using read repositories and structured domain errors.
