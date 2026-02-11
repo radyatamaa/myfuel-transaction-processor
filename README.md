@@ -94,6 +94,12 @@ npm run prisma:generate
 npm run start:dev
 ```
 
+For first setup with demo data:
+
+```bash
+npm run db:bootstrap
+```
+
 ## Database
 
 Prisma schema is in `prisma/schema.prisma`.
@@ -104,7 +110,16 @@ Useful commands:
 npm run prisma:generate
 npm run prisma:migrate
 npm run prisma:deploy
+npm run prisma:seed
 ```
+
+Seed file:
+- `prisma/seed.ts`
+
+Demo seeded data:
+- Organization: `Demo Logistics`
+- Card 1: `6037991234561001`
+- Card 2: `6037991234561002`
 
 ## API
 
@@ -169,6 +184,11 @@ Response (rejected):
   "transactionId": "uuid"
 }
 ```
+
+Quick test with seeded card:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/webhooks/transactions \\\n+  -H 'Content-Type: application/json' \\\n+  -H 'x-api-key: replace-with-secure-key' \\\n+  -d '{\n+    \"requestId\": \"station-abc-20260211-1001\",\n+    \"cardNumber\": \"6037991234561001\",\n+    \"amount\": 150000,\n+    \"transactionAt\": \"2026-02-11T09:00:00Z\",\n+    \"stationId\": \"SPBU-12345\"\n+  }'\n+```
 
 Error response format (example):
 
