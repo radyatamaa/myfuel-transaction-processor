@@ -19,7 +19,6 @@ export class WebhookApiKeyGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const expectedApiKey = this.configService.get<string>('security.webhookApiKey');
 
-    // If API key is not configured, keep endpoint accessible (local/dev mode).
     if (!expectedApiKey) {
       return true;
     }

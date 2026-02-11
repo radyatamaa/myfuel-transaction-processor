@@ -240,7 +240,7 @@ export class TransactionUseCases {
         rawPayload: JSON.stringify(payload)
       });
     } catch {
-      // Best-effort audit logging. Main flow must not fail due to logging table issues.
+      return;
     }
   }
 
@@ -285,7 +285,7 @@ export class TransactionUseCases {
     try {
       await this.publishResult(payload, result, context);
     } catch {
-      // Best-effort event publishing. Business transaction response should not fail.
+      return;
     }
   }
 }
