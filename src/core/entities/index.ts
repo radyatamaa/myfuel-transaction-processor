@@ -1,1 +1,1 @@
-// Step 1 scaffold only.
+export * from './transaction.entity';

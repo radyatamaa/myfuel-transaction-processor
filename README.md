@@ -8,6 +8,7 @@ Reference architecture style:
 1. Step 1 (done): folder architecture scaffold.
 2. Step 2 (done): NestJS runtime initialization + Node 22 project setup (still no business logic).
 3. Step 3 (done): config/env + module wiring placeholders for transaction/organization/card.
+4. Step 4 (done): webhook DTO/entity contracts + Swagger/validation scaffold.
 
 ## Step 2 Scope
 
@@ -42,8 +43,21 @@ Reference architecture style:
 - Added webhook status placeholder endpoint:
   - `GET /api/v1/webhooks/status`
 
+## Step 4 Scope
+
+- Added webhook request/response contracts:
+  - `src/core/dtos/process-transaction.dto.ts`
+  - `src/core/dtos/webhook-response.dto.ts`
+- Added basic transaction entity enums:
+  - `src/core/entities/transaction.entity.ts`
+- Updated webhook controller with contract endpoint:
+  - `POST /api/v1/webhooks/transactions` (returns `202 Accepted`)
+- Enabled API docs and request validation scaffold:
+  - Swagger at `/swagger`
+  - Global `ValidationPipe` in `src/main.ts`
+
 ## Notes
 
-- No MyFuel transaction business rules yet.
+- No MyFuel transaction business rules yet (still placeholder response).
 - No Prisma repository implementation yet.
-- Next step (Step 4): define DTO/entity contracts for transaction webhook and API docs scaffolding.
+- Next step (Step 5): add Prisma schema + data-services contract interfaces (still without real transaction processing).
