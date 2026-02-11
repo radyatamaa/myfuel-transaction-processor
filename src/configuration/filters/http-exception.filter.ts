@@ -14,6 +14,7 @@ interface ErrorResponseBody {
   message: string | string[];
   path: string;
   timestamp: string;
+  requestId?: string;
 }
 
 @Catch()
@@ -21,7 +22,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<{ status: (code: number) => { json: (body: unknown) => void } }>();
-    const request = ctx.getRequest<{ url: string }>();
+    const request = ctx.getRequest<{ url: string; requestId?: string }>();
+    const requestId = request.requestId;
 
     const fallbackMessage = 'Internal server error';
 
@@ -39,7 +41,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         error: HttpStatus[status] ?? 'HttpException',
         message,
         path: request.url,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        requestId
       };
 
       response.status(status).json(body);
@@ -56,7 +59,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         error: HttpStatus[HttpStatus.CONFLICT],
         message: 'Conflict: duplicate unique value',
         path: request.url,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        requestId
       };
 
       response.status(HttpStatus.CONFLICT).json(body);
@@ -69,7 +73,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       error: HttpStatus[HttpStatus.INTERNAL_SERVER_ERROR],
       message: fallbackMessage,
       path: request.url,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      requestId
     };
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(body);

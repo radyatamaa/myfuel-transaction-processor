@@ -1,164 +1,220 @@
-# myfuel-transaction-processor
+# MyFuel Transaction Processor
 
-Reference architecture style:
-`/Users/mbpm1pro/Documents/kerja/pribadi/technical_test/populix-chatbot/src`
+This service handles fuel transactions from petrol station webhooks.
 
-## Step Progress
+Project structure uses a clean layered style (inspired by `populix-chatbot`):
+- `controllers`
+- `core` (entities, dtos, abstracts)
+- `frameworks` (technical implementations, data services)
+- `services` (module wiring)
+- `use-cases` (business flow)
 
-1. Step 1 (done): folder architecture scaffold.
-2. Step 2 (done): NestJS runtime initialization + Node 22 project setup (still no business logic).
-3. Step 3 (done): config/env + module wiring placeholders for transaction/organization/card.
-4. Step 4 (done): webhook DTO/entity contracts + Swagger/validation scaffold.
-5. Step 5 (done): Prisma data model + data-services repository contracts (scaffold only).
-6. Step 6 (done): Prisma client integration + read-only repository implementations.
-7. Step 7 (done): transaction validation flow in use-case (read-only, no write transaction).
-8. Step 8 (done): atomic write flow for approved transaction.
-9. Step 9 (done): rejected persistence and unit tests for transaction use-case.
-10. Step 10 (done): global exception mapping and webhook e2e tests.
-11. Step 11 (done): balance ledger persistence for approved transactions.
+## Tech Stack
 
-## Step 2 Scope
+- Node.js 22
+- NestJS
+- TypeScript
+- PostgreSQL
+- Prisma
+- Jest
+- Swagger
+- GitHub Actions
 
-- Added project setup files:
-  - `package.json`
-  - `.nvmrc`, `.node-version`
-  - `nest-cli.json`
-  - `tsconfig.json`, `tsconfig.build.json`
-  - `.eslintrc.cjs`, `.prettierrc`
-  - `test/jest-e2e.json`
-  - `.github/workflows/ci.yml`
-- Added minimal runnable Nest app:
-  - `src/main.ts`
-  - `src/app.module.ts`
-  - `src/controllers/app.controller.ts`
-- Kept architecture folders aligned with reference style.
+## Current Features
 
-## Step 3 Scope
-
-- Added environment/config foundation:
-  - `.env.example`
-  - `src/configuration/index.ts`
-  - `ConfigModule` wiring in `src/app.module.ts`
-- Added module wiring placeholders:
-  - `src/use-cases/transaction/*`
-  - `src/use-cases/organization/*`
-  - `src/use-cases/card/*`
-  - `src/services/data-services/data-services.module.ts`
-  - `src/services/crm-services/crm-services.module.ts`
-  - `src/frameworks/data-services/mysql/*`
-  - `src/frameworks/crm-services/internal/*`
-- Added webhook status placeholder endpoint:
-  - `GET /api/v1/webhooks/status`
-
-## Step 4 Scope
-
-- Added webhook request/response contracts:
-  - `src/core/dtos/process-transaction.dto.ts`
-  - `src/core/dtos/webhook-response.dto.ts`
-- Added basic transaction entity enums:
-  - `src/core/entities/transaction.entity.ts`
-- Updated webhook controller with contract endpoint:
-  - `POST /api/v1/webhooks/transactions` (returns `202 Accepted`)
-- Enabled API docs and request validation scaffold:
-  - Swagger at `/swagger`
-  - Global `ValidationPipe` in `src/main.ts`
-
-## Step 5 Scope
-
-- Added Prisma schema foundation:
-  - `prisma/schema.prisma`
-- Added core entity contracts for data layer:
-  - `src/core/entities/card.entity.ts`
-  - `src/core/entities/organization.entity.ts`
-  - `src/core/entities/transaction.entity.ts` (extended)
-- Added repository/data-services contracts:
-  - `src/core/abstracts/repositories.abstract.ts`
-  - `src/core/abstracts/data-services.abstract.ts`
-- Updated MySQL data service as typed scaffold implementing contracts:
-  - `src/frameworks/data-services/mysql/mysql-data-services.service.ts`
-  - `src/frameworks/data-services/mysql/mysql-data-services.module.ts`
-- Added Prisma scripts and dependency declarations:
-  - `package.json`
-
-## Step 6 Scope
-
-- Added Prisma runtime service:
-  - `src/frameworks/data-services/mysql/prisma.service.ts`
-- Integrated Prisma service to data-services module:
-  - `src/frameworks/data-services/mysql/mysql-data-services.module.ts`
-- Implemented read-only repository methods (no write business logic yet):
-  - `findByCardNumber`
-  - `getUsageSnapshot`
-  - `findById` (organization)
-  - `findByRequestId` (transaction)
-  - file: `src/frameworks/data-services/mysql/mysql-data-services.service.ts`
-
-## Step 7 Scope
-
-- Implemented use-case validation flow:
-  - duplicate request check
-  - card existence/active check
-  - organization existence check
-  - balance check
-  - daily/monthly limit check
-- Added money comparison helper using minor-units (`bigint`) to avoid float precision issues.
-- Updated webhook endpoint behavior:
-  - `POST /api/v1/webhooks/transactions` now returns validation result (`APPROVED` / `REJECTED`)
-  - still **no write/update** to database yet.
-
-## Step 8 Scope
-
-- Added write contracts in repository abstractions:
-  - create approved/rejected transaction
+- Webhook transaction endpoint with validation and persistence.
+- Validation checks:
+  - duplicate `requestId`
+  - card exists and is active
+  - organization exists
+  - organization has enough balance
+  - card daily limit
+  - card monthly limit
+- On approved transaction:
+  - save transaction (`APPROVED`)
   - update organization balance
-  - upsert card daily/monthly usage
-- Implemented write methods in data-services Prisma implementation.
-- Implemented atomic persistence flow in use-case:
-  - create approved transaction
-  - deduct organization balance
-  - update usage counters
-  - all inside one DB transaction boundary (`runInTransaction`)
-- API response now includes optional `transactionId` for approved transactions.
+  - update daily and monthly card usage
+  - save `balance_ledger` (`DEBIT`)
+- On rejected transaction (when card and organization are known):
+  - save transaction (`REJECTED`) with `rejectionReason`
+- Global validation pipe and global exception filter.
+- Request correlation with `x-request-id` on every request.
+- Basic request logging (method, path, status, duration, request id).
 
-## Step 9 Scope
+## Project Structure
 
-- Persist rejected transactions (when card and organization context are available):
-  - insufficient balance
-  - daily limit exceeded
-  - monthly limit exceeded
-- Added unit tests for transaction use-case branches:
-  - duplicate request
-  - insufficient balance (rejected persisted)
-  - approved flow (approved persisted + balance/usage updates)
-  - file: `src/use-cases/transaction/transaction.use-case.spec.ts`
+```txt
+src/
+  app.module.ts
+  main.ts
+  configuration/
+    index.ts
+    filters/
+  controllers/
+  core/
+    abstracts/
+    dtos/
+    entities/
+  frameworks/
+    crm-services/
+    data-services/
+      mysql/
+  services/
+    crm-services/
+    data-services/
+  use-cases/
+    transaction/
+    organization/
+    card/
+prisma/
+  schema.prisma
+test/
+```
 
-## Step 10 Scope
+## Environment Variables
 
-- Added global HTTP exception filter for consistent API error shape:
-  - `src/configuration/filters/http-exception.filter.ts`
-- Applied global filter in app bootstrap:
-  - `src/main.ts`
-- Added webhook/controller e2e tests with mocked data-services:
-  - `test/webhook.e2e-spec.ts`
-- Updated e2e Jest config for `src/*` path mapping:
-  - `test/jest-e2e.json`
-  - run full e2e with `ENABLE_E2E_SOCKET=true npm run test:e2e`
+See `.env.example`:
 
-## Step 11 Scope
+```env
+PORT=3000
+NODE_ENV=development
+TZ=Asia/Jakarta
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myfuel
+REDIS_URL=redis://localhost:6379
+WEBHOOK_API_KEY=replace-with-secure-key
+```
 
-- Added balance-ledger repository abstraction and data-services exposure:
-  - `src/core/abstracts/repositories.abstract.ts`
-  - `src/core/abstracts/data-services.abstract.ts`
-- Implemented ledger persistence in MySQL/Prisma data service:
-  - `src/frameworks/data-services/mysql/mysql-data-services.service.ts`
-- Added approved-flow ledger write in transaction use-case (same DB transaction boundary):
-  - `src/use-cases/transaction/transaction.use-case.ts`
-- Updated tests to include ledger repository mock:
-  - `src/use-cases/transaction/transaction.use-case.spec.ts`
-  - `test/webhook.e2e-spec.ts`
+## Install and Run
 
-## Notes
+```bash
+nvm use 22
+npm install
+npm run prisma:generate
+npm run start:dev
+```
 
-- Validation + approved write flow are implemented.
-- Rejected persistence for early failures without card context (e.g. card not found) is not stored yet.
-- Next step (Step 12): add lightweight observability (structured logs + request correlation id) and tighten concurrency checks (optional row lock strategy).
+## Database
+
+Prisma schema is in `prisma/schema.prisma`.
+
+Useful commands:
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:deploy
+```
+
+## API
+
+Base URL:
+- `http://localhost:3000/api/v1`
+
+Swagger:
+- `http://localhost:3000/swagger`
+
+### Health Check
+
+- `GET /health`
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "ok"
+}
+```
+
+### Webhook Transaction
+
+- `POST /webhooks/transactions`
+
+Request body:
+
+```json
+{
+  "requestId": "station-abc-20260211-0001",
+  "cardNumber": "6037991234561001",
+  "amount": 350000,
+  "transactionAt": "2026-02-11T09:00:00Z",
+  "stationId": "SPBU-12345"
+}
+```
+
+Response (approved):
+
+```json
+{
+  "success": true,
+  "status": "APPROVED",
+  "message": "Transaction approved and persisted.",
+  "reason": null,
+  "requestId": "station-abc-20260211-0001",
+  "transactionId": "uuid"
+}
+```
+
+Response (rejected):
+
+```json
+{
+  "success": false,
+  "status": "REJECTED",
+  "message": "Insufficient organization balance",
+  "reason": "INSUFFICIENT_BALANCE",
+  "requestId": "station-abc-20260211-0001",
+  "transactionId": "uuid"
+}
+```
+
+Error response format (example):
+
+```json
+{
+  "success": false,
+  "statusCode": 400,
+  "error": "BadRequest",
+  "message": ["amount must be a positive number"],
+  "path": "/api/v1/webhooks/transactions",
+  "timestamp": "2026-02-11T10:00:00.000Z",
+  "requestId": "a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d"
+}
+```
+
+## Testing
+
+Unit tests:
+
+```bash
+npm test -- --runInBand
+```
+
+E2E tests:
+
+```bash
+npm run test:e2e -- --runInBand
+```
+
+Note: in sandbox environments that block socket binding, e2e tests are skipped.
+To run full e2e:
+
+```bash
+ENABLE_E2E_SOCKET=true npm run test:e2e
+```
+
+## CI
+
+CI workflow:
+- `.github/workflows/ci.yml`
+
+Pipeline runs:
+- install dependencies
+- build
+
+## Implementation Notes
+
+- Money values are handled in minor-units (`bigint`) inside use-case logic to avoid floating point issues.
+- Main idempotency key is unique `requestId`.
+- Approved write flow runs inside one transaction boundary (`runInTransaction`).
+- Middleware adds `x-request-id` if caller does not send one.
