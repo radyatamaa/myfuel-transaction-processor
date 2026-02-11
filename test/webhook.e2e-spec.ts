@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 import { AppController } from '../src/controllers/app.controller';
@@ -6,6 +7,7 @@ import { WebhookController } from '../src/controllers/webhook.controller';
 import { HttpExceptionFilter } from '../src/configuration/filters/http-exception.filter';
 import { IDataServices } from '../src/core/abstracts';
 import { RejectionReason, TransactionStatus } from '../src/core/entities';
+import { TransactionFactoryService } from '../src/use-cases/transaction/transaction-factory.service';
 import { TransactionUseCases } from '../src/use-cases/transaction/transaction.use-case';
 
 type MockDataServices = {
@@ -77,16 +79,23 @@ const describeE2E = process.env.ENABLE_E2E_SOCKET === 'true' ? describe : descri
 describeE2E('WebhookController (e2e)', () => {
   let app: INestApplication;
   const dataServices = createMockDataServices();
-  const httpApp = () => app.getHttpAdapter().getInstance();
+  const httpApp = () => app.getHttpServer();
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AppController, WebhookController],
       providers: [
+        TransactionFactoryService,
         TransactionUseCases,
         {
           provide: IDataServices,
           useValue: dataServices
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue('')
+          }
         }
       ]
     }).compile();
@@ -114,7 +123,9 @@ describeE2E('WebhookController (e2e)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('GET /api/v1/health returns ok', async () => {
