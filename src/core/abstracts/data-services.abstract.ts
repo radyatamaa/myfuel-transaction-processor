@@ -9,5 +9,5 @@ export abstract class IDataServices {
   abstract readonly organizations: IOrganizationRepository;
   abstract readonly transactions: ITransactionRepository;
 
-  abstract runInTransaction<T>(callback: () => Promise<T>): Promise<T>;
+  abstract runInTransaction<T>(callback: (tx: IDataServices) => Promise<T>): Promise<T>;
 }

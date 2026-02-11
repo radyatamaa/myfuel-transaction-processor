@@ -12,8 +12,8 @@ export class WebhookController {
   status() {
     return {
       success: true,
-      step: 7,
-      message: 'Webhook validation flow is ready (read-only).'
+      step: 8,
+      message: 'Webhook validation and atomic write flow are ready.'
     };
   }
 

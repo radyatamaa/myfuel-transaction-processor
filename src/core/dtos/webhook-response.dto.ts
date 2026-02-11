@@ -16,4 +16,7 @@ export class WebhookResponseDto {
 
   @ApiProperty({ example: 'station-abc-20260211-0001' })
   requestId!: string;
+
+  @ApiProperty({ required: false, nullable: true, example: '3f46b4f2-9f28-4fe0-95fd-0f92dc53d72a' })
+  transactionId?: string | null;
 }

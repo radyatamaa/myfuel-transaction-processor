@@ -12,6 +12,7 @@ Reference architecture style:
 5. Step 5 (done): Prisma data model + data-services repository contracts (scaffold only).
 6. Step 6 (done): Prisma client integration + read-only repository implementations.
 7. Step 7 (done): transaction validation flow in use-case (read-only, no write transaction).
+8. Step 8 (done): atomic write flow for approved transaction.
 
 ## Step 2 Scope
 
@@ -102,8 +103,22 @@ Reference architecture style:
   - `POST /api/v1/webhooks/transactions` now returns validation result (`APPROVED` / `REJECTED`)
   - still **no write/update** to database yet.
 
+## Step 8 Scope
+
+- Added write contracts in repository abstractions:
+  - create approved/rejected transaction
+  - update organization balance
+  - upsert card daily/monthly usage
+- Implemented write methods in data-services Prisma implementation.
+- Implemented atomic persistence flow in use-case:
+  - create approved transaction
+  - deduct organization balance
+  - update usage counters
+  - all inside one DB transaction boundary (`runInTransaction`)
+- API response now includes optional `transactionId` for approved transactions.
+
 ## Notes
 
-- Validation rules are implemented in read-only mode.
-- Write operations for transaction processing are not implemented yet.
-- Next step (Step 8): implement atomic write flow (create transaction, update balance, update usage counters) with DB transaction boundaries.
+- Validation + approved write flow are implemented.
+- Rejected transaction persistence/logging policy can be expanded in next step.
+- Next step (Step 9): persist rejected transactions when possible and add unit tests for transaction use-case branches.

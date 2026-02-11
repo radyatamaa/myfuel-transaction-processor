@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { IDataServices } from 'src/core/abstracts';
 import { ProcessTransactionDto, WebhookResponseDto } from 'src/core/dtos';
 import { RejectionReason, WebhookResponseStatus } from 'src/core/entities';
@@ -11,7 +12,7 @@ export class TransactionUseCases {
     return {
       module: 'transaction',
       ready: true,
-      note: 'Step 7 validation flow ready (read-only)'
+      note: 'Step 8 validation and atomic write flow ready'
     };
   }
 
@@ -65,13 +66,45 @@ export class TransactionUseCases {
       );
     }
 
-    return {
-      success: true,
-      status: WebhookResponseStatus.APPROVED,
-      message: 'Validation passed. Transaction write flow will be added in next step.',
-      reason: null,
-      requestId: payload.requestId
-    };
+    const newBalanceMinor = balanceMinor - amountMinor;
+    const newBalance = this.fromMinorUnits(newBalanceMinor);
+    const amount = this.fromMinorUnits(amountMinor);
+
+    try {
+      const approvedTransaction = await this.dataServices.runInTransaction(async (tx) => {
+        const transaction = await tx.transactions.createApproved({
+          requestId: payload.requestId,
+          organizationId: organization.id,
+          cardId: card.id,
+          stationId: payload.stationId,
+          amount,
+          trxAt
+        });
+
+        await tx.organizations.updateBalance(organization.id, newBalance);
+        await tx.cards.addUsage(card.id, trxAt, amount);
+
+        return transaction;
+      });
+
+      return {
+        success: true,
+        status: WebhookResponseStatus.APPROVED,
+        message: 'Transaction approved and persisted.',
+        reason: null,
+        requestId: payload.requestId,
+        transactionId: approvedTransaction.id
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        return this.rejected(payload.requestId, RejectionReason.DUPLICATE_REQUEST, 'Duplicate requestId');
+      }
+
+      throw error;
+    }
   }
 
   private rejected(
@@ -102,5 +135,14 @@ export class TransactionUseCases {
     const fractionMinor = BigInt(cents || '0');
 
     return sign * (integerMinor + fractionMinor);
+  }
+
+  private fromMinorUnits(value: bigint): string {
+    const sign = value < 0n ? '-' : '';
+    const normalized = value < 0n ? -value : value;
+    const integerPart = normalized / 100n;
+    const fractionPart = normalized % 100n;
+
+    return `${sign}${integerPart.toString()}.${fractionPart.toString().padStart(2, '0')}`;
   }
 }
