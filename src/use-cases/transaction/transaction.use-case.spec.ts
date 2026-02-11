@@ -100,6 +100,30 @@ describe('TransactionUseCases', () => {
     expect(dataServices.rejectionLogs.create).toHaveBeenCalledTimes(1);
   });
 
+  it('returns rejected when organization is not found', async () => {
+    const dataServices = createMockDataServices();
+    dataServices.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.cards.findByCardNumber.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: payload.cardNumber,
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    dataServices.organizations.findById.mockResolvedValue(null);
+
+    const useCase = new TransactionUseCases(dataServices as unknown as IDataServices, new TransactionFactoryService());
+    const result = await useCase.process(payload);
+
+    expect(result.status).toBe(WebhookResponseStatus.REJECTED);
+    expect(result.reason).toBe(RejectionReason.ORGANIZATION_NOT_FOUND);
+    expect(dataServices.rejectionLogs.create).toHaveBeenCalledTimes(1);
+    expect(dataServices.runInTransaction).not.toHaveBeenCalled();
+  });
+
   it('persists rejected transaction when balance is insufficient', async () => {
     const dataServices = createMockDataServices();
     dataServices.transactions.findByRequestId.mockResolvedValue(null);

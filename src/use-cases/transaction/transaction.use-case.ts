@@ -44,7 +44,7 @@ export class TransactionUseCases {
     if (!organization) {
       const result = this.factory.buildRejected(
         payload.requestId,
-        RejectionReason.CARD_NOT_FOUND,
+        RejectionReason.ORGANIZATION_NOT_FOUND,
         'Organization not found'
       );
       await this.trackRejection(payload, result);
@@ -85,7 +85,7 @@ export class TransactionUseCases {
         if (!lockedOrganization) {
           return this.factory.buildRejected(
             payload.requestId,
-            RejectionReason.CARD_NOT_FOUND,
+            RejectionReason.ORGANIZATION_NOT_FOUND,
             'Organization not found'
           );
         }
