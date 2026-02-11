@@ -14,6 +14,7 @@ Reference architecture style:
 7. Step 7 (done): transaction validation flow in use-case (read-only, no write transaction).
 8. Step 8 (done): atomic write flow for approved transaction.
 9. Step 9 (done): rejected persistence and unit tests for transaction use-case.
+10. Step 10 (done): global exception mapping and webhook e2e tests.
 
 ## Step 2 Scope
 
@@ -130,8 +131,20 @@ Reference architecture style:
   - approved flow (approved persisted + balance/usage updates)
   - file: `src/use-cases/transaction/transaction.use-case.spec.ts`
 
+## Step 10 Scope
+
+- Added global HTTP exception filter for consistent API error shape:
+  - `src/configuration/filters/http-exception.filter.ts`
+- Applied global filter in app bootstrap:
+  - `src/main.ts`
+- Added webhook/controller e2e tests with mocked data-services:
+  - `test/webhook.e2e-spec.ts`
+- Updated e2e Jest config for `src/*` path mapping:
+  - `test/jest-e2e.json`
+  - run full e2e with `ENABLE_E2E_SOCKET=true npm run test:e2e`
+
 ## Notes
 
 - Validation + approved write flow are implemented.
 - Rejected persistence for early failures without card context (e.g. card not found) is not stored yet.
-- Next step (Step 10): add consistent exception mapping and e2e tests for webhook endpoint.
+- Next step (Step 11): add balance ledger persistence and improve duplicate handling under high concurrency.

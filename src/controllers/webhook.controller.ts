@@ -19,7 +19,7 @@ export class WebhookController {
 
   @Post('transactions')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Validate fuel transaction webhook (no write yet)' })
+  @ApiOperation({ summary: 'Validate and process fuel transaction webhook' })
   @ApiBody({ type: ProcessTransactionDto })
   @ApiResponse({ status: 200, type: WebhookResponseDto })
   async processTransaction(@Body() body: ProcessTransactionDto): Promise<WebhookResponseDto> {
