@@ -5,7 +5,18 @@ import { AppModule } from './app.module';
 import { APP } from './configuration';
 import { HttpExceptionFilter } from './configuration/filters/http-exception.filter';
 
+function validateRequiredSecurityConfig(): void {
+  const isProduction = APP.nodeEnv === 'production';
+  const webhookApiKey = process.env.WEBHOOK_API_KEY?.trim();
+
+  if (isProduction && !webhookApiKey) {
+    throw new Error('WEBHOOK_API_KEY is required in production');
+  }
+}
+
 async function bootstrap(): Promise<void> {
+  validateRequiredSecurityConfig();
+
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api/v1');
