@@ -1,9 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { APP } from './configuration';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ? Number(process.env.PORT) : 3000);
+  app.setGlobalPrefix('api/v1');
+  await app.listen(APP.port);
 }
 
 void bootstrap();
