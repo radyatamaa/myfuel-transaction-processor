@@ -59,16 +59,12 @@ src/
     dtos/
     entities/
   frameworks/
-    crm-services/
     data-services/
       mysql/
   services/
-    crm-services/
     data-services/
   use-cases/
     transaction/
-    organization/
-    card/
 prisma/
   schema.prisma
 test/
@@ -190,7 +186,17 @@ Response (rejected):
 Quick test with seeded card:
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/webhooks/transactions \\\n+  -H 'Content-Type: application/json' \\\n+  -H 'x-api-key: replace-with-secure-key' \\\n+  -d '{\n+    \"requestId\": \"station-abc-20260211-1001\",\n+    \"cardNumber\": \"6037991234561001\",\n+    \"amount\": 150000,\n+    \"transactionAt\": \"2026-02-11T09:00:00Z\",\n+    \"stationId\": \"SPBU-12345\"\n+  }'\n+```
+curl -X POST http://localhost:3000/api/v1/webhooks/transactions \
+  -H 'Content-Type: application/json' \
+  -H 'x-api-key: replace-with-secure-key' \
+  -d '{
+    "requestId": "station-abc-20260211-1001",
+    "cardNumber": "6037991234561001",
+    "amount": 150000,
+    "transactionAt": "2026-02-11T09:00:00Z",
+    "stationId": "SPBU-12345"
+  }'
+```
 
 Error response format (example):
 

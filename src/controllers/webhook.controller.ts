@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { WebhookApiKeyGuard } from 'src/configuration/guards/webhook-api-key.guard';
 import { ProcessTransactionDto, WebhookResponseDto } from 'src/core/dtos';
@@ -8,15 +8,6 @@ import { TransactionUseCases } from 'src/use-cases/transaction/transaction.use-c
 @Controller('webhooks')
 export class WebhookController {
   constructor(private readonly transactionUseCases: TransactionUseCases) {}
-
-  @Get('status')
-  status() {
-    return {
-      success: true,
-      version: '1.0.0',
-      message: 'Webhook validation and atomic write flow are ready.'
-    };
-  }
 
   @Post('transactions')
   @HttpCode(HttpStatus.OK)

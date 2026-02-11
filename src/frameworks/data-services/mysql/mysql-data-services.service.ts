@@ -344,7 +344,7 @@ function createDataServices(db: DbClient): IDataServices {
     ledgers: new MysqlBalanceLedgerRepository(db),
     rejectionLogs: new MysqlWebhookRejectionLogRepository(db),
     runInTransaction: async <T>(_callback: (tx: IDataServices) => Promise<T>): Promise<T> => {
-      throw new Error('Nested transaction is not supported in this scaffold');
+      throw new Error('Nested transaction is not supported');
     }
   };
 }

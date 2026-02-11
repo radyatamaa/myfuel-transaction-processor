@@ -15,14 +15,6 @@ export class TransactionUseCases {
     private readonly eventPublisher?: ITransactionEventPublisher
   ) {}
 
-  status() {
-    return {
-      module: 'transaction',
-      ready: true,
-      note: 'transaction flow with validation, atomic write, and event publishing'
-    };
-  }
-
   async process(payload: ProcessTransactionDto): Promise<WebhookResponseDto> {
     const existingTransaction = await this.dataServices.transactions.findByRequestId(payload.requestId);
     if (existingTransaction) {
