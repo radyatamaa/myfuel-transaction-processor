@@ -1,12 +1,17 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { IDataServices } from 'src/core/abstracts';
+import { IDataServices, ITransactionEventPublisher } from 'src/core/abstracts';
 import { ProcessTransactionDto, WebhookResponseDto } from 'src/core/dtos';
 import { BalanceLedgerType, RejectionReason, WebhookResponseStatus } from 'src/core/entities';
 
 @Injectable()
 export class TransactionUseCases {
-  constructor(@Inject(IDataServices) private readonly dataServices: IDataServices) {}
+  constructor(
+    @Inject(IDataServices) private readonly dataServices: IDataServices,
+    @Optional()
+    @Inject(ITransactionEventPublisher)
+    private readonly eventPublisher?: ITransactionEventPublisher
+  ) {}
 
   status() {
     return {
@@ -19,17 +24,23 @@ export class TransactionUseCases {
   async process(payload: ProcessTransactionDto): Promise<WebhookResponseDto> {
     const existingTransaction = await this.dataServices.transactions.findByRequestId(payload.requestId);
     if (existingTransaction) {
-      return this.rejected(payload.requestId, RejectionReason.DUPLICATE_REQUEST, 'Duplicate requestId');
+      const result = this.rejected(payload.requestId, RejectionReason.DUPLICATE_REQUEST, 'Duplicate requestId');
+      await this.publishResult(payload, result);
+      return result;
     }
 
     const card = await this.dataServices.cards.findByCardNumber(payload.cardNumber);
     if (!card || !card.isActive) {
-      return this.rejected(payload.requestId, RejectionReason.CARD_NOT_FOUND, 'Card not found or inactive');
+      const result = this.rejected(payload.requestId, RejectionReason.CARD_NOT_FOUND, 'Card not found or inactive');
+      await this.publishResult(payload, result);
+      return result;
     }
 
     const organization = await this.dataServices.organizations.findById(card.organizationId);
     if (!organization) {
-      return this.rejected(payload.requestId, RejectionReason.CARD_NOT_FOUND, 'Organization not found');
+      const result = this.rejected(payload.requestId, RejectionReason.CARD_NOT_FOUND, 'Organization not found');
+      await this.publishResult(payload, result);
+      return result;
     }
 
     const trxAt = new Date(payload.transactionAt);
@@ -37,7 +48,7 @@ export class TransactionUseCases {
     const amount = this.fromMinorUnits(amountMinor);
 
     try {
-      return this.dataServices.runInTransaction(async (tx) => {
+      const result = await this.dataServices.runInTransaction(async (tx) => {
         // Lock card and organization rows to reduce concurrent double-spend risk.
         await tx.cards.lockById(card.id);
         await tx.organizations.lockById(organization.id);
@@ -144,15 +155,60 @@ export class TransactionUseCases {
           transactionId: transaction.id
         };
       });
+      await this.publishResult(payload, result, {
+        cardId: card.id,
+        organizationId: organization.id,
+        amount
+      });
+      return result;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        return this.rejected(payload.requestId, RejectionReason.DUPLICATE_REQUEST, 'Duplicate requestId');
+        const result = this.rejected(payload.requestId, RejectionReason.DUPLICATE_REQUEST, 'Duplicate requestId');
+        await this.publishResult(payload, result);
+        return result;
       }
 
       throw error;
+    }
+  }
+
+  private async publishResult(
+    payload: ProcessTransactionDto,
+    result: WebhookResponseDto,
+    context?: { organizationId?: string; cardId?: string; amount?: string }
+  ): Promise<void> {
+    if (!this.eventPublisher) {
+      return;
+    }
+
+    if (result.status === WebhookResponseStatus.APPROVED && result.transactionId) {
+      await this.eventPublisher.publishApproved({
+        requestId: result.requestId,
+        transactionId: result.transactionId,
+        organizationId: context?.organizationId ?? '',
+        cardId: context?.cardId ?? '',
+        amount: context?.amount ?? String(payload.amount),
+        stationId: payload.stationId,
+        transactionAt: payload.transactionAt
+      });
+      return;
+    }
+
+    if (result.status === WebhookResponseStatus.REJECTED && result.reason) {
+      await this.eventPublisher.publishRejected({
+        requestId: result.requestId,
+        transactionId: result.transactionId ?? undefined,
+        organizationId: context?.organizationId,
+        cardId: context?.cardId,
+        amount: context?.amount,
+        stationId: payload.stationId,
+        transactionAt: payload.transactionAt,
+        reason: result.reason,
+        message: result.message
+      });
     }
   }
 

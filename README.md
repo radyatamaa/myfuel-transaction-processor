@@ -41,6 +41,7 @@ Project structure uses a clean layered style:
 - Request correlation with `x-request-id` on every request.
 - Basic request logging (method, path, status, duration, request id).
 - Webhook API key guard for transaction endpoint (`x-api-key`).
+- Transaction events (`approved`/`rejected`) with handler logging.
 
 ## Project Structure
 
@@ -242,3 +243,4 @@ Pipeline runs:
 - Concurrency guard uses row lock (`FOR UPDATE`) for card and organization during final validation + write.
 - Middleware adds `x-request-id` if caller does not send one.
 - `WEBHOOK_API_KEY` enables API key protection for `POST /webhooks/transactions`.
+- Use-case publishes transaction events through event publisher abstraction.

@@ -1,4 +1,4 @@
-import { IDataServices } from '../../core/abstracts';
+import { IDataServices, ITransactionEventPublisher } from '../../core/abstracts';
 import { RejectionReason, TransactionStatus, WebhookResponseStatus } from '../../core/entities';
 import { TransactionUseCases } from './transaction.use-case';
 
@@ -182,5 +182,57 @@ describe('TransactionUseCases', () => {
     expect(dataServices.organizations.updateBalance).toHaveBeenCalledTimes(1);
     expect(dataServices.cards.addUsage).toHaveBeenCalledTimes(1);
     expect(dataServices.ledgers.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('publishes approved event when transaction is approved', async () => {
+    const dataServices = createMockDataServices();
+    const eventPublisher: jest.Mocked<ITransactionEventPublisher> = {
+      publishApproved: jest.fn(),
+      publishRejected: jest.fn()
+    };
+
+    dataServices.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.cards.findByCardNumber.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: payload.cardNumber,
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    dataServices.organizations.findById.mockResolvedValue({
+      id: 'org-1',
+      name: 'Org',
+      currentBalance: '500.00',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    dataServices.cards.getUsageSnapshot.mockResolvedValue({
+      dailyUsedAmount: '0',
+      monthlyUsedAmount: '0'
+    });
+    dataServices.transactions.createApproved.mockResolvedValue({
+      id: 'trx-approved',
+      requestId: payload.requestId,
+      organizationId: 'org-1',
+      cardId: 'card-1',
+      stationId: payload.stationId,
+      amount: '100.00',
+      trxAt: new Date(payload.transactionAt),
+      status: TransactionStatus.APPROVED,
+      rejectionReason: null,
+      createdAt: new Date()
+    });
+
+    const useCase = new TransactionUseCases(
+      dataServices as unknown as IDataServices,
+      eventPublisher
+    );
+    await useCase.process(payload);
+
+    expect(eventPublisher.publishApproved).toHaveBeenCalledTimes(1);
+    expect(eventPublisher.publishRejected).not.toHaveBeenCalled();
   });
 });
