@@ -2,7 +2,8 @@ import {
   IBalanceLedgerRepository,
   ICardRepository,
   IOrganizationRepository,
-  ITransactionRepository
+  ITransactionRepository,
+  IWebhookRejectionLogRepository
 } from './repositories.abstract';
 
 export abstract class IDataServices {
@@ -10,6 +11,7 @@ export abstract class IDataServices {
   abstract readonly organizations: IOrganizationRepository;
   abstract readonly transactions: ITransactionRepository;
   abstract readonly ledgers: IBalanceLedgerRepository;
+  abstract readonly rejectionLogs: IWebhookRejectionLogRepository;
 
   abstract runInTransaction<T>(callback: (tx: IDataServices) => Promise<T>): Promise<T>;
 }

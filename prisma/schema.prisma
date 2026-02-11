@@ -93,6 +93,23 @@ model BalanceLedger {
   @@index([referenceType, referenceId])
 }
 
+model WebhookRejectionLog {
+  id            String          @id @default(uuid())
+  requestId     String
+  cardNumber    String?
+  amount        Decimal?        @db.Decimal(18, 2)
+  stationId     String?
+  transactionAt DateTime?
+  reason        RejectionReason
+  message       String
+  rawPayload    Json?
+  createdAt     DateTime        @default(now())
+
+  @@index([requestId])
+  @@index([reason])
+  @@index([createdAt])
+}
+
 enum TransactionStatus {
   APPROVED
   REJECTED

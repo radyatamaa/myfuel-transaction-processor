@@ -28,6 +28,9 @@ type MockDataServices = {
   ledgers: {
     create: jest.Mock;
   };
+  rejectionLogs: {
+    create: jest.Mock;
+  };
   runInTransaction: jest.Mock;
 };
 
@@ -50,6 +53,9 @@ function createMockDataServices(): MockDataServices {
       createRejected: jest.fn()
     },
     ledgers: {
+      create: jest.fn()
+    },
+    rejectionLogs: {
       create: jest.fn()
     },
     runInTransaction: jest.fn()

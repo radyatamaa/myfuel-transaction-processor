@@ -29,3 +29,16 @@ export interface Transaction {
   rejectionReason: RejectionReason | null;
   createdAt: Date;
 }
+
+export interface WebhookRejectionLog {
+  id: string;
+  requestId: string;
+  cardNumber?: string;
+  amount?: string;
+  stationId?: string;
+  transactionAt?: Date;
+  reason: RejectionReason;
+  message: string;
+  rawPayload?: string;
+  createdAt: Date;
+}

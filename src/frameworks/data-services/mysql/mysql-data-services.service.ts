@@ -4,11 +4,13 @@ import {
   IBalanceLedgerRepository,
   CardUsageSnapshot,
   CreateBalanceLedgerInput,
+  CreateWebhookRejectionLogInput,
   CreateTransactionInput,
   ICardRepository,
   IDataServices,
   IOrganizationRepository,
-  ITransactionRepository
+  ITransactionRepository,
+  IWebhookRejectionLogRepository
 } from 'src/core/abstracts';
 import {
   BalanceLedger,
@@ -294,12 +296,32 @@ class MysqlBalanceLedgerRepository implements IBalanceLedgerRepository {
   }
 }
 
+class MysqlWebhookRejectionLogRepository implements IWebhookRejectionLogRepository {
+  constructor(private readonly db: DbClient) {}
+
+  async create(input: CreateWebhookRejectionLogInput): Promise<void> {
+    await this.db.webhookRejectionLog.create({
+      data: {
+        requestId: input.requestId,
+        cardNumber: input.cardNumber,
+        amount: input.amount,
+        stationId: input.stationId,
+        transactionAt: input.transactionAt,
+        reason: input.reason as PrismaRejectionReason,
+        message: input.message,
+        rawPayload: input.rawPayload
+      }
+    });
+  }
+}
+
 function createDataServices(db: DbClient): IDataServices {
   return {
     cards: new MysqlCardRepository(db),
     organizations: new MysqlOrganizationRepository(db),
     transactions: new MysqlTransactionRepository(db),
     ledgers: new MysqlBalanceLedgerRepository(db),
+    rejectionLogs: new MysqlWebhookRejectionLogRepository(db),
     runInTransaction: async <T>(_callback: (tx: IDataServices) => Promise<T>): Promise<T> => {
       throw new Error('Nested transaction is not supported in this scaffold');
     }
@@ -312,12 +334,14 @@ export class MysqlDataServicesService implements IDataServices {
   readonly organizations: IOrganizationRepository;
   readonly transactions: ITransactionRepository;
   readonly ledgers: IBalanceLedgerRepository;
+  readonly rejectionLogs: IWebhookRejectionLogRepository;
 
   constructor(private readonly prisma: PrismaService) {
     this.cards = new MysqlCardRepository(prisma);
     this.organizations = new MysqlOrganizationRepository(prisma);
     this.transactions = new MysqlTransactionRepository(prisma);
     this.ledgers = new MysqlBalanceLedgerRepository(prisma);
+    this.rejectionLogs = new MysqlWebhookRejectionLogRepository(prisma);
   }
 
   async runInTransaction<T>(callback: (tx: IDataServices) => Promise<T>): Promise<T> {

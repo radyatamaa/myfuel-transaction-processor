@@ -37,6 +37,7 @@ Project structure uses a clean layered style:
   - save `balance_ledger` (`DEBIT`)
 - On rejected transaction (when card and organization are known):
   - save transaction (`REJECTED`) with `rejectionReason`
+  - save rejection audit log (`WebhookRejectionLog`)
 - Global validation pipe and global exception filter.
 - Request correlation with `x-request-id` on every request.
 - Basic request logging (method, path, status, duration, request id).
@@ -244,3 +245,4 @@ Pipeline runs:
 - Middleware adds `x-request-id` if caller does not send one.
 - `WEBHOOK_API_KEY` enables API key protection for `POST /webhooks/transactions`.
 - Use-case publishes transaction events through event publisher abstraction.
+- Rejection auditing uses best-effort write to `WebhookRejectionLog`.

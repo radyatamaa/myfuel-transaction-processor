@@ -23,6 +23,9 @@ type MockDataServices = {
   ledgers: {
     create: jest.Mock;
   };
+  rejectionLogs: {
+    create: jest.Mock;
+  };
   runInTransaction: jest.Mock;
 };
 
@@ -54,6 +57,9 @@ describe('TransactionUseCases', () => {
         createRejected: jest.fn()
       },
       ledgers: {
+        create: jest.fn()
+      },
+      rejectionLogs: {
         create: jest.fn()
       },
       runInTransaction: jest.fn()
@@ -89,6 +95,7 @@ describe('TransactionUseCases', () => {
     expect(result.status).toBe(WebhookResponseStatus.REJECTED);
     expect(result.reason).toBe(RejectionReason.DUPLICATE_REQUEST);
     expect(dataServices.cards.findByCardNumber).not.toHaveBeenCalled();
+    expect(dataServices.rejectionLogs.create).toHaveBeenCalledTimes(1);
   });
 
   it('persists rejected transaction when balance is insufficient', async () => {
@@ -135,6 +142,7 @@ describe('TransactionUseCases', () => {
     expect(result.reason).toBe(RejectionReason.INSUFFICIENT_BALANCE);
     expect(result.transactionId).toBe('trx-rejected');
     expect(dataServices.transactions.createRejected).toHaveBeenCalledTimes(1);
+    expect(dataServices.rejectionLogs.create).toHaveBeenCalledTimes(1);
   });
 
   it('returns approved and persists updates when validation passes', async () => {
@@ -183,6 +191,7 @@ describe('TransactionUseCases', () => {
     expect(dataServices.organizations.updateBalance).toHaveBeenCalledTimes(1);
     expect(dataServices.cards.addUsage).toHaveBeenCalledTimes(1);
     expect(dataServices.ledgers.create).toHaveBeenCalledTimes(1);
+    expect(dataServices.rejectionLogs.create).not.toHaveBeenCalled();
   });
 
   it('publishes approved event when transaction is approved', async () => {

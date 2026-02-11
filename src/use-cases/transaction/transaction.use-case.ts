@@ -31,6 +31,7 @@ export class TransactionUseCases {
         RejectionReason.DUPLICATE_REQUEST,
         'Duplicate requestId'
       );
+      await this.trackRejection(payload, result);
       await this.publishResult(payload, result);
       return result;
     }
@@ -42,6 +43,7 @@ export class TransactionUseCases {
         RejectionReason.CARD_NOT_FOUND,
         'Card not found or inactive'
       );
+      await this.trackRejection(payload, result);
       await this.publishResult(payload, result);
       return result;
     }
@@ -53,6 +55,7 @@ export class TransactionUseCases {
         RejectionReason.CARD_NOT_FOUND,
         'Organization not found'
       );
+      await this.trackRejection(payload, result);
       await this.publishResult(payload, result);
       return result;
     }
@@ -171,6 +174,9 @@ export class TransactionUseCases {
         organizationId: organization.id,
         amount
       });
+      if (result.status === WebhookResponseStatus.REJECTED) {
+        await this.trackRejection(payload, result);
+      }
 
       return result;
     } catch (error) {
@@ -183,11 +189,38 @@ export class TransactionUseCases {
           RejectionReason.DUPLICATE_REQUEST,
           'Duplicate requestId'
         );
+        await this.trackRejection(payload, result);
         await this.publishResult(payload, result);
         return result;
       }
 
       throw error;
+    }
+  }
+
+  private async trackRejection(
+    payload: ProcessTransactionDto,
+    result: WebhookResponseDto
+  ): Promise<void> {
+    if (result.status !== WebhookResponseStatus.REJECTED || !result.reason) {
+      return;
+    }
+
+    const amount = this.factory.fromMinorUnits(this.factory.toMinorUnits(payload.amount));
+
+    try {
+      await this.dataServices.rejectionLogs.create({
+        requestId: payload.requestId,
+        cardNumber: payload.cardNumber,
+        amount,
+        stationId: payload.stationId,
+        transactionAt: new Date(payload.transactionAt),
+        reason: result.reason,
+        message: result.message,
+        rawPayload: JSON.stringify(payload)
+      });
+    } catch {
+      // Best-effort audit logging. Main flow must not fail due to logging table issues.
     }
   }
 

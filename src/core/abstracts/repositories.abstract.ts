@@ -44,6 +44,17 @@ export interface CreateBalanceLedgerInput {
   referenceId: string;
 }
 
+export interface CreateWebhookRejectionLogInput {
+  requestId: string;
+  cardNumber?: string;
+  amount?: string;
+  stationId?: string;
+  transactionAt?: Date;
+  reason: RejectionReason;
+  message: string;
+  rawPayload?: string;
+}
+
 export abstract class ITransactionRepository {
   abstract findByRequestId(requestId: string): Promise<Transaction | null>;
   abstract createApproved(input: CreateTransactionInput): Promise<Transaction>;
@@ -54,4 +65,8 @@ export abstract class ITransactionRepository {
 
 export abstract class IBalanceLedgerRepository {
   abstract create(input: CreateBalanceLedgerInput): Promise<BalanceLedger>;
+}
+
+export abstract class IWebhookRejectionLogRepository {
+  abstract create(input: CreateWebhookRejectionLogInput): Promise<void>;
 }
