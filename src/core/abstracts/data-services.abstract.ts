@@ -1,2 +1,13 @@
-// Step 3 placeholder contract for future data services integration.
-export abstract class IDataServices {}
+import {
+  ICardRepository,
+  IOrganizationRepository,
+  ITransactionRepository
+} from './repositories.abstract';
+
+export abstract class IDataServices {
+  abstract readonly cards: ICardRepository;
+  abstract readonly organizations: IOrganizationRepository;
+  abstract readonly transactions: ITransactionRepository;
+
+  abstract runInTransaction<T>(callback: () => Promise<T>): Promise<T>;
+}

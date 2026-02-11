@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id             String          @id @default(uuid())
+  name           String
+  currentBalance Decimal         @db.Decimal(18, 2)
+  cards          Card[]
+  transactions   Transaction[]
+  balanceLedgers BalanceLedger[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Card {
+  id             String             @id @default(uuid())
+  organization   Organization       @relation(fields: [organizationId], references: [id])
+  organizationId String
+  cardNumber     String             @unique
+  dailyLimit     Decimal            @db.Decimal(18, 2)
+  monthlyLimit   Decimal            @db.Decimal(18, 2)
+  isActive       Boolean            @default(true)
+  dailyUsages    CardDailyUsage[]
+  monthlyUsages  CardMonthlyUsage[]
+  transactions   Transaction[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([organizationId])
+}
+
+model CardDailyUsage {
+  id         String   @id @default(uuid())
+  card       Card     @relation(fields: [cardId], references: [id])
+  cardId     String
+  usageDate  DateTime @db.Date
+  usedAmount Decimal  @db.Decimal(18, 2)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([cardId, usageDate])
+}
+
+model CardMonthlyUsage {
+  id         String   @id @default(uuid())
+  card       Card     @relation(fields: [cardId], references: [id])
+  cardId     String
+  usageMonth String
+  usedAmount Decimal  @db.Decimal(18, 2)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([cardId, usageMonth])
+}
+
+model Transaction {
+  id             String            @id @default(uuid())
+  requestId      String            @unique
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  organizationId String
+  card           Card              @relation(fields: [cardId], references: [id])
+  cardId         String
+  stationId      String
+  amount         Decimal           @db.Decimal(18, 2)
+  trxAt          DateTime
+  status         TransactionStatus
+  rejectionReason RejectionReason?
+  createdAt      DateTime          @default(now())
+
+  @@index([organizationId])
+  @@index([cardId])
+  @@index([trxAt])
+  @@index([status])
+}
+
+model BalanceLedger {
+  id             String       @id @default(uuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  type           LedgerType
+  amount         Decimal      @db.Decimal(18, 2)
+  beforeBalance  Decimal      @db.Decimal(18, 2)
+  afterBalance   Decimal      @db.Decimal(18, 2)
+  referenceType  String
+  referenceId    String
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([referenceType, referenceId])
+}
+
+enum TransactionStatus {
+  APPROVED
+  REJECTED
+}
+
+enum RejectionReason {
+  CARD_NOT_FOUND
+  INSUFFICIENT_BALANCE
+  DAILY_LIMIT_EXCEEDED
+  MONTHLY_LIMIT_EXCEEDED
+  DUPLICATE_REQUEST
+}
+
+enum LedgerType {
+  DEBIT
+  CREDIT
+}

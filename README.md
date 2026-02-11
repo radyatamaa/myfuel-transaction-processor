@@ -9,6 +9,7 @@ Reference architecture style:
 2. Step 2 (done): NestJS runtime initialization + Node 22 project setup (still no business logic).
 3. Step 3 (done): config/env + module wiring placeholders for transaction/organization/card.
 4. Step 4 (done): webhook DTO/entity contracts + Swagger/validation scaffold.
+5. Step 5 (done): Prisma data model + data-services repository contracts (scaffold only).
 
 ## Step 2 Scope
 
@@ -56,8 +57,25 @@ Reference architecture style:
   - Swagger at `/swagger`
   - Global `ValidationPipe` in `src/main.ts`
 
+## Step 5 Scope
+
+- Added Prisma schema foundation:
+  - `prisma/schema.prisma`
+- Added core entity contracts for data layer:
+  - `src/core/entities/card.entity.ts`
+  - `src/core/entities/organization.entity.ts`
+  - `src/core/entities/transaction.entity.ts` (extended)
+- Added repository/data-services contracts:
+  - `src/core/abstracts/repositories.abstract.ts`
+  - `src/core/abstracts/data-services.abstract.ts`
+- Updated MySQL data service as typed scaffold implementing contracts:
+  - `src/frameworks/data-services/mysql/mysql-data-services.service.ts`
+  - `src/frameworks/data-services/mysql/mysql-data-services.module.ts`
+- Added Prisma scripts and dependency declarations:
+  - `package.json`
+
 ## Notes
 
 - No MyFuel transaction business rules yet (still placeholder response).
-- No Prisma repository implementation yet.
-- Next step (Step 5): add Prisma schema + data-services contract interfaces (still without real transaction processing).
+- Repository methods are intentionally not implemented (contract scaffold only).
+- Next step (Step 6): implement Prisma client integration and read-only repository queries.
