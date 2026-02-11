@@ -13,6 +13,7 @@ Reference architecture style:
 6. Step 6 (done): Prisma client integration + read-only repository implementations.
 7. Step 7 (done): transaction validation flow in use-case (read-only, no write transaction).
 8. Step 8 (done): atomic write flow for approved transaction.
+9. Step 9 (done): rejected persistence and unit tests for transaction use-case.
 
 ## Step 2 Scope
 
@@ -117,8 +118,20 @@ Reference architecture style:
   - all inside one DB transaction boundary (`runInTransaction`)
 - API response now includes optional `transactionId` for approved transactions.
 
+## Step 9 Scope
+
+- Persist rejected transactions (when card and organization context are available):
+  - insufficient balance
+  - daily limit exceeded
+  - monthly limit exceeded
+- Added unit tests for transaction use-case branches:
+  - duplicate request
+  - insufficient balance (rejected persisted)
+  - approved flow (approved persisted + balance/usage updates)
+  - file: `src/use-cases/transaction/transaction.use-case.spec.ts`
+
 ## Notes
 
 - Validation + approved write flow are implemented.
-- Rejected transaction persistence/logging policy can be expanded in next step.
-- Next step (Step 9): persist rejected transactions when possible and add unit tests for transaction use-case branches.
+- Rejected persistence for early failures without card context (e.g. card not found) is not stored yet.
+- Next step (Step 10): add consistent exception mapping and e2e tests for webhook endpoint.
