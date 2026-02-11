@@ -217,4 +217,5 @@ Pipeline runs:
 - Money values are handled in minor-units (`bigint`) inside use-case logic to avoid floating point issues.
 - Main idempotency key is unique `requestId`.
 - Approved write flow runs inside one transaction boundary (`runInTransaction`).
+- Concurrency guard uses row lock (`FOR UPDATE`) for card and organization during final validation + write.
 - Middleware adds `x-request-id` if caller does not send one.

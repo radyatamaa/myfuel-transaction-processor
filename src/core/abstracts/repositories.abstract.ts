@@ -16,11 +16,13 @@ export abstract class ICardRepository {
   abstract findByCardNumber(cardNumber: string): Promise<Card | null>;
   abstract getUsageSnapshot(cardId: string, trxAt: Date): Promise<CardUsageSnapshot>;
   abstract addUsage(cardId: string, trxAt: Date, amount: string): Promise<void>;
+  abstract lockById(cardId: string): Promise<void>;
 }
 
 export abstract class IOrganizationRepository {
   abstract findById(id: string): Promise<Organization | null>;
   abstract updateBalance(id: string, newBalance: string): Promise<void>;
+  abstract lockById(id: string): Promise<void>;
 }
 
 export interface CreateTransactionInput {

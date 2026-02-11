@@ -33,60 +33,87 @@ export class TransactionUseCases {
     }
 
     const trxAt = new Date(payload.transactionAt);
-    const usage = await this.dataServices.cards.getUsageSnapshot(card.id, trxAt);
-
     const amountMinor = this.toMinorUnits(payload.amount);
     const amount = this.fromMinorUnits(amountMinor);
-    const balanceMinor = this.toMinorUnits(organization.currentBalance);
-    const dailyLimitMinor = this.toMinorUnits(card.dailyLimit);
-    const monthlyLimitMinor = this.toMinorUnits(card.monthlyLimit);
-    const dailyUsedMinor = this.toMinorUnits(usage.dailyUsedAmount);
-    const monthlyUsedMinor = this.toMinorUnits(usage.monthlyUsedAmount);
-
-    if (balanceMinor < amountMinor) {
-      return this.persistRejectedWithContext(
-        payload,
-        card.id,
-        organization.id,
-        trxAt,
-        amount,
-        payload.requestId,
-        RejectionReason.INSUFFICIENT_BALANCE,
-        'Insufficient organization balance'
-      );
-    }
-
-    if (dailyUsedMinor + amountMinor > dailyLimitMinor) {
-      return this.persistRejectedWithContext(
-        payload,
-        card.id,
-        organization.id,
-        trxAt,
-        amount,
-        payload.requestId,
-        RejectionReason.DAILY_LIMIT_EXCEEDED,
-        'Daily card limit exceeded'
-      );
-    }
-
-    if (monthlyUsedMinor + amountMinor > monthlyLimitMinor) {
-      return this.persistRejectedWithContext(
-        payload,
-        card.id,
-        organization.id,
-        trxAt,
-        amount,
-        payload.requestId,
-        RejectionReason.MONTHLY_LIMIT_EXCEEDED,
-        'Monthly card limit exceeded'
-      );
-    }
-
-    const newBalanceMinor = balanceMinor - amountMinor;
-    const newBalance = this.fromMinorUnits(newBalanceMinor);
 
     try {
-      const approvedTransaction = await this.dataServices.runInTransaction(async (tx) => {
+      return this.dataServices.runInTransaction(async (tx) => {
+        // Lock card and organization rows to reduce concurrent double-spend risk.
+        await tx.cards.lockById(card.id);
+        await tx.organizations.lockById(organization.id);
+
+        const lockedOrganization = await tx.organizations.findById(organization.id);
+        if (!lockedOrganization) {
+          return this.rejected(payload.requestId, RejectionReason.CARD_NOT_FOUND, 'Organization not found');
+        }
+
+        const usage = await tx.cards.getUsageSnapshot(card.id, trxAt);
+        const balanceMinor = this.toMinorUnits(lockedOrganization.currentBalance);
+        const dailyLimitMinor = this.toMinorUnits(card.dailyLimit);
+        const monthlyLimitMinor = this.toMinorUnits(card.monthlyLimit);
+        const dailyUsedMinor = this.toMinorUnits(usage.dailyUsedAmount);
+        const monthlyUsedMinor = this.toMinorUnits(usage.monthlyUsedAmount);
+
+        if (balanceMinor < amountMinor) {
+          const rejectedTransaction = await tx.transactions.createRejected({
+            requestId: payload.requestId,
+            organizationId: organization.id,
+            cardId: card.id,
+            stationId: payload.stationId,
+            amount,
+            trxAt,
+            rejectionReason: RejectionReason.INSUFFICIENT_BALANCE
+          });
+
+          return this.rejectedWithTransactionId(
+            payload.requestId,
+            RejectionReason.INSUFFICIENT_BALANCE,
+            'Insufficient organization balance',
+            rejectedTransaction.id
+          );
+        }
+
+        if (dailyUsedMinor + amountMinor > dailyLimitMinor) {
+          const rejectedTransaction = await tx.transactions.createRejected({
+            requestId: payload.requestId,
+            organizationId: organization.id,
+            cardId: card.id,
+            stationId: payload.stationId,
+            amount,
+            trxAt,
+            rejectionReason: RejectionReason.DAILY_LIMIT_EXCEEDED
+          });
+
+          return this.rejectedWithTransactionId(
+            payload.requestId,
+            RejectionReason.DAILY_LIMIT_EXCEEDED,
+            'Daily card limit exceeded',
+            rejectedTransaction.id
+          );
+        }
+
+        if (monthlyUsedMinor + amountMinor > monthlyLimitMinor) {
+          const rejectedTransaction = await tx.transactions.createRejected({
+            requestId: payload.requestId,
+            organizationId: organization.id,
+            cardId: card.id,
+            stationId: payload.stationId,
+            amount,
+            trxAt,
+            rejectionReason: RejectionReason.MONTHLY_LIMIT_EXCEEDED
+          });
+
+          return this.rejectedWithTransactionId(
+            payload.requestId,
+            RejectionReason.MONTHLY_LIMIT_EXCEEDED,
+            'Monthly card limit exceeded',
+            rejectedTransaction.id
+          );
+        }
+
+        const newBalanceMinor = balanceMinor - amountMinor;
+        const newBalance = this.fromMinorUnits(newBalanceMinor);
+
         const transaction = await tx.transactions.createApproved({
           requestId: payload.requestId,
           organizationId: organization.id,
@@ -108,60 +135,15 @@ export class TransactionUseCases {
           referenceId: transaction.id
         });
 
-        return transaction;
-      });
-
-      return {
-        success: true,
-        status: WebhookResponseStatus.APPROVED,
-        message: 'Transaction approved and persisted.',
-        reason: null,
-        requestId: payload.requestId,
-        transactionId: approvedTransaction.id
-      };
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        return this.rejected(payload.requestId, RejectionReason.DUPLICATE_REQUEST, 'Duplicate requestId');
-      }
-
-      throw error;
-    }
-  }
-
-  private async persistRejectedWithContext(
-    payload: ProcessTransactionDto,
-    cardId: string,
-    organizationId: string,
-    trxAt: Date,
-    amount: string,
-    requestId: string,
-    reason: RejectionReason,
-    message: string
-  ): Promise<WebhookResponseDto> {
-    try {
-      const rejectedTransaction = await this.dataServices.runInTransaction(async (tx) => {
-        return tx.transactions.createRejected({
+        return {
+          success: true,
+          status: WebhookResponseStatus.APPROVED,
+          message: 'Transaction approved and persisted.',
+          reason: null,
           requestId: payload.requestId,
-          organizationId,
-          cardId,
-          stationId: payload.stationId,
-          amount,
-          trxAt,
-          rejectionReason: reason
-        });
+          transactionId: transaction.id
+        };
       });
-
-      return {
-        success: false,
-        status: WebhookResponseStatus.REJECTED,
-        message,
-        reason,
-        requestId,
-        transactionId: rejectedTransaction.id
-      };
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -185,6 +167,22 @@ export class TransactionUseCases {
       message,
       reason,
       requestId
+    };
+  }
+
+  private rejectedWithTransactionId(
+    requestId: string,
+    reason: RejectionReason,
+    message: string,
+    transactionId: string
+  ): WebhookResponseDto {
+    return {
+      success: false,
+      status: WebhookResponseStatus.REJECTED,
+      message,
+      reason,
+      requestId,
+      transactionId
     };
   }
 

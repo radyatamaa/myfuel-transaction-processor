@@ -13,10 +13,12 @@ type MockDataServices = {
     findByCardNumber: jest.Mock;
     getUsageSnapshot: jest.Mock;
     addUsage: jest.Mock;
+    lockById: jest.Mock;
   };
   organizations: {
     findById: jest.Mock;
     updateBalance: jest.Mock;
+    lockById: jest.Mock;
   };
   transactions: {
     findByRequestId: jest.Mock;
@@ -34,11 +36,13 @@ function createMockDataServices(): MockDataServices {
     cards: {
       findByCardNumber: jest.fn(),
       getUsageSnapshot: jest.fn(),
-      addUsage: jest.fn()
+      addUsage: jest.fn(),
+      lockById: jest.fn()
     },
     organizations: {
       findById: jest.fn(),
-      updateBalance: jest.fn()
+      updateBalance: jest.fn(),
+      lockById: jest.fn()
     },
     transactions: {
       findByRequestId: jest.fn(),

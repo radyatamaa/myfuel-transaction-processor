@@ -141,6 +141,10 @@ class MysqlCardRepository implements ICardRepository {
       })
     ]);
   }
+
+  async lockById(cardId: string): Promise<void> {
+    await this.db.$queryRaw`SELECT id FROM "Card" WHERE id = ${cardId} FOR UPDATE`;
+  }
 }
 
 class MysqlOrganizationRepository implements IOrganizationRepository {
@@ -169,6 +173,10 @@ class MysqlOrganizationRepository implements IOrganizationRepository {
       where: { id },
       data: { currentBalance: newBalance }
     });
+  }
+
+  async lockById(id: string): Promise<void> {
+    await this.db.$queryRaw`SELECT id FROM "Organization" WHERE id = ${id} FOR UPDATE`;
   }
 }
 
