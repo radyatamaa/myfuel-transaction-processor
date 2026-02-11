@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { MysqlDataServicesModule } from '../../frameworks/data-services/mysql/mysql-data-services.module';
+import { PrismaDataServicesModule } from '../../frameworks/data-services/prisma/prisma-data-services.module';
 
 @Module({
-  imports: [MysqlDataServicesModule],
-  exports: [MysqlDataServicesModule]
+  imports: [PrismaDataServicesModule],
+  exports: [PrismaDataServicesModule]
 })
 export class DataServicesModule {}

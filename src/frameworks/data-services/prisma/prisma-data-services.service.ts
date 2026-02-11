@@ -45,7 +45,7 @@ function mapRejectionReason(reason: PrismaRejectionReason | null): RejectionReas
   return reason as RejectionReason;
 }
 
-class MysqlCardRepository implements ICardRepository {
+class PrismaCardRepository implements ICardRepository {
   constructor(private readonly db: DbClient) {}
 
   async findById(id: string): Promise<Card | null> {
@@ -170,7 +170,7 @@ class MysqlCardRepository implements ICardRepository {
   }
 }
 
-class MysqlOrganizationRepository implements IOrganizationRepository {
+class PrismaOrganizationRepository implements IOrganizationRepository {
   constructor(private readonly db: DbClient) {}
 
   async findById(id: string): Promise<Organization | null> {
@@ -203,7 +203,7 @@ class MysqlOrganizationRepository implements IOrganizationRepository {
   }
 }
 
-class MysqlTransactionRepository implements ITransactionRepository {
+class PrismaTransactionRepository implements ITransactionRepository {
   constructor(private readonly db: DbClient) {}
 
   async findByRequestId(requestId: string): Promise<Transaction | null> {
@@ -287,7 +287,7 @@ class MysqlTransactionRepository implements ITransactionRepository {
   }
 }
 
-class MysqlBalanceLedgerRepository implements IBalanceLedgerRepository {
+class PrismaBalanceLedgerRepository implements IBalanceLedgerRepository {
   constructor(private readonly db: DbClient) {}
 
   async create(input: CreateBalanceLedgerInput): Promise<BalanceLedger> {
@@ -317,7 +317,7 @@ class MysqlBalanceLedgerRepository implements IBalanceLedgerRepository {
   }
 }
 
-class MysqlWebhookRejectionLogRepository implements IWebhookRejectionLogRepository {
+class PrismaWebhookRejectionLogRepository implements IWebhookRejectionLogRepository {
   constructor(private readonly db: DbClient) {}
 
   async create(input: CreateWebhookRejectionLogInput): Promise<void> {
@@ -338,11 +338,11 @@ class MysqlWebhookRejectionLogRepository implements IWebhookRejectionLogReposito
 
 function createDataServices(db: DbClient): IDataServices {
   return {
-    cards: new MysqlCardRepository(db),
-    organizations: new MysqlOrganizationRepository(db),
-    transactions: new MysqlTransactionRepository(db),
-    ledgers: new MysqlBalanceLedgerRepository(db),
-    rejectionLogs: new MysqlWebhookRejectionLogRepository(db),
+    cards: new PrismaCardRepository(db),
+    organizations: new PrismaOrganizationRepository(db),
+    transactions: new PrismaTransactionRepository(db),
+    ledgers: new PrismaBalanceLedgerRepository(db),
+    rejectionLogs: new PrismaWebhookRejectionLogRepository(db),
     runInTransaction: async <T>(_callback: (tx: IDataServices) => Promise<T>): Promise<T> => {
       throw new Error('Nested transaction is not supported');
     }
@@ -350,7 +350,7 @@ function createDataServices(db: DbClient): IDataServices {
 }
 
 @Injectable()
-export class MysqlDataServicesService implements IDataServices {
+export class PrismaDataServicesService implements IDataServices {
   readonly cards: ICardRepository;
   readonly organizations: IOrganizationRepository;
   readonly transactions: ITransactionRepository;
@@ -358,11 +358,11 @@ export class MysqlDataServicesService implements IDataServices {
   readonly rejectionLogs: IWebhookRejectionLogRepository;
 
   constructor(private readonly prisma: PrismaService) {
-    this.cards = new MysqlCardRepository(prisma);
-    this.organizations = new MysqlOrganizationRepository(prisma);
-    this.transactions = new MysqlTransactionRepository(prisma);
-    this.ledgers = new MysqlBalanceLedgerRepository(prisma);
-    this.rejectionLogs = new MysqlWebhookRejectionLogRepository(prisma);
+    this.cards = new PrismaCardRepository(prisma);
+    this.organizations = new PrismaOrganizationRepository(prisma);
+    this.transactions = new PrismaTransactionRepository(prisma);
+    this.ledgers = new PrismaBalanceLedgerRepository(prisma);
+    this.rejectionLogs = new PrismaWebhookRejectionLogRepository(prisma);
   }
 
   async runInTransaction<T>(callback: (tx: IDataServices) => Promise<T>): Promise<T> {

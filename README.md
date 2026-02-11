@@ -60,7 +60,7 @@ src/
     entities/
   frameworks/
     data-services/
-      mysql/
+      prisma/
   services/
     data-services/
   use-cases/
