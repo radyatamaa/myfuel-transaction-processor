@@ -13,36 +13,47 @@ flowchart TD
   B --> C{Duplicate requestId?}
 
   C -- Yes --> C1{Same payload?}
-  C1 -- Yes --> C2[Return previous result]
-  C2 --> Z0[Return HTTP 200 code=SUCCESS or REJECTED]
-  C1 -- No --> C3[Reject DUPLICATE_REQUEST]
-  C3 --> C4[Save rejection log and publish rejected event]
-  C4 --> Z1[Return HTTP 200 code=REJECTED]
+  C1 -- Yes --> C2[Validate card by cardNumber]
+  C2 --> C3{Card exists and active?}
+  C3 -- No --> C4[Reject CARD_NOT_FOUND]
+  C4 --> C5[Save rejection log and publish rejected event]
+  C5 --> Z1[Return HTTP 200 code=REJECTED]
+  C3 -- Yes --> C6[Return previous result]
+  C6 --> Z0[Return HTTP 200 code=SUCCESS or REJECTED]
+  C1 -- No --> C7[Reject DUPLICATE_REQUEST]
+  C7 --> C8[Save rejection log and publish rejected event]
+  C8 --> Z1
 
-  C -- No --> D[Load card and organization from cache, then DB]
-  D --> E{Card is active and organization exists?}
+  C -- No --> D[Load card by cardNumber from cache, then DB]
+  D --> E{Card exists and active?}
 
-  E -- No --> E1[Reject CARD_NOT_FOUND or ORGANIZATION_NOT_FOUND]
+  E -- No --> E1[Reject CARD_NOT_FOUND]
   E1 --> E2[Save rejection log and publish rejected event]
   E2 --> Z1
 
-  E -- Yes --> F[Start DB transaction]
-  F --> G[Lock card and organization rows FOR UPDATE]
-  G --> H[Read daily/monthly usage]
-  H --> I{Balance and limits are valid?}
+  E -- Yes --> F[Load organization by card.organizationId]
+  F --> G{Organization exists?}
+  G -- No --> G1[Reject ORGANIZATION_NOT_FOUND]
+  G1 --> G2[Save rejection log and publish rejected event]
+  G2 --> Z1
 
-  I -- No --> I1[Save rejected transaction]
-  I1 --> I2[Commit]
-  I2 --> I3[Save rejection log and publish rejected event]
-  I3 --> Z1
+  G -- Yes --> H[Start DB transaction]
+  H --> I[Lock card and organization rows FOR UPDATE]
+  I --> J[Read daily/monthly usage]
+  J --> K{Balance and limits are valid?}
 
-  I -- Yes --> J[Save approved transaction]
-  J --> K[Deduct organization balance]
-  K --> L[Update daily/monthly usage]
-  L --> M[Insert balance ledger DEBIT]
-  M --> N[Commit]
-  N --> O[Publish approved event]
-  O --> Z2[Return HTTP 200 code=SUCCESS]
+  K -- No --> K1[Save rejected transaction]
+  K1 --> K2[Commit]
+  K2 --> K3[Save rejection log and publish rejected event]
+  K3 --> Z1
+
+  K -- Yes --> L[Save approved transaction]
+  L --> M[Deduct organization balance]
+  M --> N[Update daily/monthly usage]
+  N --> O[Insert balance ledger DEBIT]
+  O --> P[Commit]
+  P --> Q[Publish approved event]
+  Q --> Z2[Return HTTP 200 code=SUCCESS]
 ```
 
 ## 2) ERD

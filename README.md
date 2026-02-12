@@ -47,6 +47,7 @@ Data-services composition:
 - Idempotency by unique `requestId`:
   - same `requestId` + same payload -> return previous result
   - same `requestId` + different payload -> reject (`DUPLICATE_REQUEST`)
+- Validation order: card lookup/active check first, then organization check.
 - Reject when card is not found or inactive.
 - Reject when organization not found.
 - Reject when insufficient balance.
@@ -87,10 +88,23 @@ Response style:
 - `code = REJECTED` for business rejection (HTTP 200)
 - 4xx/5xx for validation, auth, or system errors
 
-## Environment
-See `.env.example`.
+## Setup and Run
+1. Use Node.js 22
+```bash
+nvm use 22
+```
 
-Important keys:
+2. Install dependencies
+```bash
+npm install
+```
+
+3. Create environment file
+```bash
+cp .env.example .env
+```
+
+Important env keys:
 - `DATABASE_URL`
 - `WEBHOOK_API_KEY`
 - `WEBHOOK_SIGNATURE_SECRET` (optional)
@@ -99,17 +113,14 @@ Important keys:
 - `REDIS_KEY_PREFIX` (optional)
 - `REDIS_DB` (optional)
 
-## Run
-```bash
-nvm use 22
-npm install
-npm run prisma:generate
-npm run start:dev
-```
-
-First setup:
+4. Prepare database
 ```bash
 npm run db:bootstrap
+```
+
+5. Run the app
+```bash
+npm run start:dev
 ```
 
 ## Test and Build

@@ -42,7 +42,7 @@ export class TransactionUseCases {
     const existingTransaction = await this.dataServices.prisma.transactions.findByRequestId(payload.requestId);
     if (existingTransaction) {
       if (this.isDuplicatePayloadSame(existingTransaction, payload)) {
-        return this.buildReplayResult(existingTransaction);
+        return this.buildReplayResult(existingTransaction,payload,startedAt);
       }
 
       const result = this.factory.buildRejected(
@@ -56,16 +56,8 @@ export class TransactionUseCases {
       return result;
     }
 
-    const card = await this.getCardByCardNumber(payload.cardNumber);
-    if (!card || !card.isActive) {
-      const result = this.factory.buildRejected(
-        payload.requestId,
-        RejectionReason.CARD_NOT_FOUND,
-        'Card not found or inactive'
-      );
-      await this.trackRejection(payload, result);
-      await this.publishResultSafely(payload, result);
-      this.logBusinessRejection(result.reason, payload.requestId, startedAt);
+    const {result,card} = await this.dupCheckCardByCardNumber(payload,startedAt)
+    if (result) {
       return result;
     }
 
@@ -260,6 +252,23 @@ export class TransactionUseCases {
     }
   }
 
+  private async dupCheckCardByCardNumber(payload: ProcessTransactionDto, startedAt: number) {
+    const card = await this.getCardByCardNumber(payload.cardNumber);
+    if (!card || !card.isActive) {
+      const result = this.factory.buildRejected(
+        payload.requestId,
+        RejectionReason.CARD_NOT_FOUND,
+        'Card not found or inactive'
+      );
+      await this.trackRejection(payload, result);
+      await this.publishResultSafely(payload, result);
+      this.logBusinessRejection(result.reason, payload.requestId, startedAt);
+      return {result,card};
+    }
+
+    return {card, result:null};
+  }
+
   private logBusinessRejection(
     reason: RejectionReason | null | undefined,
     requestId: string,
@@ -293,7 +302,11 @@ export class TransactionUseCases {
     );
   }
 
-  private buildReplayResult(existing: Transaction): WebhookResponseDto {
+  private async buildReplayResult(existing: Transaction, payload: ProcessTransactionDto, startedAt: number): Promise<WebhookResponseDto> {
+    const {result} = await this.dupCheckCardByCardNumber(payload,startedAt);
+    if (result) {
+      return result
+    }
     if (existing.status === TransactionStatus.APPROVED) {
       return this.factory.buildApproved(existing.requestId, existing.id);
     }
