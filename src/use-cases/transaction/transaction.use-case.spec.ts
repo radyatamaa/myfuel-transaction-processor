@@ -295,6 +295,7 @@ describe('TransactionUseCases', () => {
     const useCase = new TransactionUseCases(
       dataServices as unknown as IDataServices,
       new TransactionFactoryService(),
+      undefined,
       eventPublisher
     );
     await useCase.process(payload);

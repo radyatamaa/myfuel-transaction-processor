@@ -1,15 +1,21 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { IDataServices, ITransactionEventPublisher } from 'src/core/abstracts';
+import { IDataServices, ICacheService, ITransactionEventPublisher } from 'src/core/abstracts';
 import { ProcessTransactionDto, WebhookResponseDto } from 'src/core/dtos';
-import { BalanceLedgerType, RejectionReason, WebhookResponseStatus } from 'src/core/entities';
+import { BalanceLedgerType, Card, Organization, RejectionReason, WebhookResponseStatus } from 'src/core/entities';
 import { TransactionFactoryService } from './transaction-factory.service';
 
 @Injectable()
 export class TransactionUseCases {
+  private static readonly CARD_CACHE_TTL_SECONDS = 60;
+  private static readonly ORGANIZATION_CACHE_TTL_SECONDS = 60;
+
   constructor(
     @Inject(IDataServices) private readonly dataServices: IDataServices,
     private readonly factory: TransactionFactoryService,
+    @Optional()
+    @Inject(ICacheService)
+    private readonly cacheService?: ICacheService,
     @Optional()
     @Inject(ITransactionEventPublisher)
     private readonly eventPublisher?: ITransactionEventPublisher
@@ -28,7 +34,7 @@ export class TransactionUseCases {
       return result;
     }
 
-    const card = await this.dataServices.cards.findByCardNumber(payload.cardNumber);
+    const card = await this.getCardByCardNumber(payload.cardNumber);
     if (!card || !card.isActive) {
       const result = this.factory.buildRejected(
         payload.requestId,
@@ -40,7 +46,7 @@ export class TransactionUseCases {
       return result;
     }
 
-    const organization = await this.dataServices.organizations.findById(card.organizationId);
+    const organization = await this.getOrganizationById(card.organizationId);
     if (!organization) {
       const result = this.factory.buildRejected(
         payload.requestId,
@@ -279,5 +285,55 @@ export class TransactionUseCases {
     } catch {
       return;
     }
+  }
+
+  private cardCacheKey(cardNumber: string): string {
+    return `card:${cardNumber}`;
+  }
+
+  private organizationCacheKey(organizationId: string): string {
+    return `organization:${organizationId}`;
+  }
+
+  private async getCardByCardNumber(cardNumber: string): Promise<Card | null> {
+    const cacheKey = this.cardCacheKey(cardNumber);
+    const cached = await this.cacheService?.get<Card>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const card = await this.dataServices.cards.findByCardNumber(cardNumber);
+    if (!card) {
+      return null;
+    }
+
+    await this.cacheService?.set(
+      cacheKey,
+      card,
+      TransactionUseCases.CARD_CACHE_TTL_SECONDS
+    );
+
+    return card;
+  }
+
+  private async getOrganizationById(organizationId: string): Promise<Organization | null> {
+    const cacheKey = this.organizationCacheKey(organizationId);
+    const cached = await this.cacheService?.get<Organization>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const organization = await this.dataServices.organizations.findById(organizationId);
+    if (!organization) {
+      return null;
+    }
+
+    await this.cacheService?.set(
+      cacheKey,
+      organization,
+      TransactionUseCases.ORGANIZATION_CACHE_TTL_SECONDS
+    );
+
+    return organization;
   }
 }

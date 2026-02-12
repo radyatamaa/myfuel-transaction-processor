@@ -11,7 +11,9 @@ export default () => ({
     url: process.env.DATABASE_URL ?? ''
   },
   redis: {
-    url: process.env.REDIS_URL ?? ''
+    url: process.env.REDIS_URL ?? '',
+    keyPrefix: process.env.REDIS_KEY_PREFIX ?? 'myfuel:cache:',
+    db: Number(process.env.REDIS_DB ?? 0)
   },
   security: {
     webhookApiKey: process.env.WEBHOOK_API_KEY ?? ''

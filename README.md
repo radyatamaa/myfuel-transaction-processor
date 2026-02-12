@@ -50,6 +50,9 @@ Project structure uses a clean layered style:
 - Basic request logging (method, path, status, duration, request id).
 - Webhook API key guard for transaction endpoint (`x-api-key`).
 - Transaction events (`approved`/`rejected`) with handler logging.
+- Optional cache layer for card and organization lookup:
+  - uses Redis when available
+  - falls back to in-memory cache when Redis is unavailable
 
 ## Project Structure
 
@@ -87,7 +90,15 @@ NODE_ENV=development
 TZ=Asia/Jakarta
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myfuel
 REDIS_URL=redis://localhost:6379
+REDIS_KEY_PREFIX=myfuel:cache:
+REDIS_DB=0
 WEBHOOK_API_KEY=replace-with-secure-key
+```
+
+If you want Redis-backed cache, install Redis client package first:
+
+```bash
+npm install redis
 ```
 
 ## Install and Run
