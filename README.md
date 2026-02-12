@@ -5,6 +5,18 @@ This service handles fuel transactions from petrol station webhooks.
 System design document:
 - `docs/system-design.md`
 
+## Objective
+
+Build a reliable webhook processor for fuel transactions that:
+- enforces organization balance and card limits
+- guarantees transaction consistency under concurrent load
+- provides auditable transaction history
+
+## Scope
+
+- In scope: transaction processing webhook and related persistence.
+- Out of scope: top-up/funding API, card management API, reconciliation pipeline.
+
 Project structure uses a clean layered style:
 - `controllers`
 - `core` (entities, dtos, abstracts)
@@ -56,6 +68,14 @@ Project structure uses a clean layered style:
 - Optional cache layer for card and organization lookup:
   - uses Redis when available
   - falls back to in-memory cache when Redis is unavailable
+
+## Key Engineering Decisions
+
+- Business reject returns HTTP `200` with `code=REJECTED` (not HTTP error).
+- Idempotency uses unique `requestId` in database.
+- Final validation and writes run in one DB transaction with row locks.
+- Money comparisons use minor-unit (`bigint`) conversion to avoid floating point issues.
+- Rejection audit and event publishing are best-effort; they do not break API response.
 
 ## Project Structure
 
@@ -299,3 +319,10 @@ Pipeline runs:
 - The app fails startup in production when `WEBHOOK_API_KEY` is empty.
 - Use-case publishes transaction events through event publisher abstraction.
 - Rejection auditing uses best-effort write to `WebhookRejectionLog`.
+
+## Non-Goals and Known Limitations
+
+- No top-up/funding flow in this service.
+- No distributed queue/broker (events are in-process publisher/handler).
+- Redis cache invalidation is TTL-based (not event-driven invalidation).
+- E2E tests are optional in constrained environments that block socket binding.

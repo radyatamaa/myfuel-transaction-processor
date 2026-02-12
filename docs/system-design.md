@@ -5,6 +5,29 @@ This document covers Part 1 deliverables:
 - ERD
 - High-Level System Architecture
 
+## Context and Scope
+
+### Problem
+
+Process fuel transaction webhooks with strict business validation:
+- organization prepaid balance must be sufficient
+- card daily and monthly limits must not be exceeded
+- result must be persisted with auditable history
+
+### In Scope
+
+- Synchronous webhook processing for one transaction request.
+- Business decision output: approved or rejected.
+- Persistence for transaction, balance movement, and rejection audit.
+- Concurrency-safe write path for high parallel traffic on same card/org.
+
+### Out of Scope
+
+- Card lifecycle management APIs.
+- Organization funding/top-up APIs.
+- Settlement/reconciliation with external providers.
+- Multi-region active-active deployment.
+
 ## 1) Flow Diagram
 
 ```mermaid
@@ -198,6 +221,32 @@ flowchart LR
     UC --> EV
 ```
 
+## Architectural Decisions
+
+### Decision 1: Return HTTP 200 for business rejection
+
+- Reason: request is syntactically valid and processed successfully.
+- Outcome: sender does not retry endlessly due to 4xx for business outcomes.
+- Contract: result is differentiated by `code` (`SUCCESS` or `REJECTED`) and `data.reason`.
+
+### Decision 2: DB transaction + row locks for write consistency
+
+- Reason: prevent race conditions when concurrent webhooks hit same card/org.
+- Mechanism: lock card and organization rows (`FOR UPDATE`) before final validation/write.
+- Outcome: balance and usage counters remain consistent.
+
+### Decision 3: Database-backed idempotency
+
+- Reason: duplicate webhook delivery is expected.
+- Mechanism: unique constraint on `Transaction.requestId` + duplicate handling fallback.
+- Outcome: only one effective transaction per request id.
+
+### Decision 4: Cache is optional optimization
+
+- Reason: reduce read load on hot card/org lookups without making Redis mandatory.
+- Mechanism: Redis if available, in-memory fallback otherwise.
+- Outcome: performance gain with safe fallback behavior.
+
 ## Scalability and Extensibility Notes
 
 - Concurrency-safe write path:
@@ -219,6 +268,31 @@ flowchart LR
 - Performance:
   - optional Redis cache for card/organization read path.
   - indexes on frequently filtered columns (`requestId`, `cardId`, `organizationId`, `status`, `trxAt`).
+
+## Reliability and Operations
+
+### Failure Handling
+
+- Validation/auth errors return 4xx.
+- Unexpected server errors return 5xx.
+- Event publishing and rejection audit logging are best-effort and must not break transaction response.
+
+### Observability
+
+- Request correlation id (`x-request-id`) propagated in response body/header.
+- Request logging includes method, path, status, and duration.
+- Business result is visible via response `code` and stored transaction status.
+
+### Security
+
+- Webhook endpoint protected by API key guard (`x-api-key`).
+- Production startup enforces non-empty `WEBHOOK_API_KEY`.
+
+### Suggested SLO (for production target)
+
+- Availability: 99.9% monthly for webhook endpoint.
+- P95 latency: < 200 ms (excluding DB/network incidents).
+- Duplicate suppression correctness: 100% by unique `requestId`.
 
 ## Assumptions
 
