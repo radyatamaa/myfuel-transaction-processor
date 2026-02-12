@@ -77,6 +77,147 @@ Project structure uses a clean layered style:
 - Money comparisons use minor-unit (`bigint`) conversion to avoid floating point issues.
 - Rejection audit and event publishing are best-effort; they do not break API response.
 
+## Code Architecture Flow (for Junior Developers)
+
+This project follows clean architecture style with inward dependencies.
+
+```mermaid
+flowchart TB
+    subgraph L1["Core Layer (No Framework Dependency)"]
+      C_ENT[Entities<br/>src/core/entities]
+      C_ABS[Abstractions/Ports<br/>IDataServices, ICacheService,<br/>ITransactionEventPublisher]
+      C_DTO[DTO Contracts<br/>src/core/dtos]
+    end
+
+    subgraph L2["Use Case Layer"]
+      U_TX[TransactionUseCases<br/>src/use-cases/transaction/transaction.use-case.ts]
+      U_FAC[TransactionFactoryService]
+    end
+
+    subgraph L3["Interface Layer"]
+      I_CTRL[WebhookController<br/>src/controllers/webhook.controller.ts]
+      I_CFG[Guards/Filters/Middleware<br/>src/configuration]
+    end
+
+    subgraph L4["Infrastructure Layer"]
+      F_DS[PrismaDataServicesService]
+      F_REPO[Prisma Repositories<br/>Card/Organization/Transaction/Ledger/RejectionLog]
+      F_CACHE[CacheService]
+      F_EVT[TransactionEventPublisher/Handler]
+    end
+
+    EXT[External Caller] --> I_CTRL
+    I_CFG --> I_CTRL
+    I_CTRL --> U_TX
+    U_TX --> U_FAC
+    U_TX --> C_ABS
+    U_TX --> C_ENT
+    U_TX --> C_DTO
+
+    F_DS --> F_REPO
+    F_REPO --> DB[(PostgreSQL)]
+    F_CACHE --> REDIS[(Redis Optional)]
+
+    U_TX -. depends on interface .-> C_ABS
+    F_DS -. implements .-> C_ABS
+    F_CACHE -. implements .-> C_ABS
+    F_EVT -. implements .-> C_ABS
+```
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant X as External Caller
+    participant M as RequestIdMiddleware / Guard
+    participant C as WebhookController
+    participant U as TransactionUseCases
+    participant K as CacheService
+    participant D as PrismaDataServices
+    participant P as PostgreSQL
+    participant E as EventPublisher
+
+    X->>M: HTTP request
+    M->>C: validated request + requestId
+    C->>U: process(dto)
+    U->>D: findByRequestId()
+    alt duplicate
+      U->>E: publishRejected()
+      U-->>C: REJECTED
+    else not duplicate
+      U->>K: get(card)
+      U->>D: find card/org (if cache miss)
+      U->>D: runInTransaction()
+      D->>P: lock rows + validate + write
+      U->>E: publish approved/rejected
+      U-->>C: SUCCESS/REJECTED
+    end
+    C-->>X: base response JSON
+```
+
+### Layer Responsibility
+
+1. `controllers`
+- Handle HTTP concern only (request, response, status code, guards).
+- Call use-case and map output to API response.
+- Example: `src/controllers/webhook.controller.ts`.
+
+2. `use-cases`
+- Main business flow/orchestration.
+- Validate business rules and decide approved/rejected.
+- Call abstractions only (`IDataServices`, `ICacheService`, `ITransactionEventPublisher`).
+- Example: `src/use-cases/transaction/transaction.use-case.ts`.
+
+3. `core`
+- Framework-agnostic contracts and entities.
+- Contains business language and data contracts.
+- Examples: `src/core/entities`, `src/core/abstracts`, `src/core/dtos`.
+
+4. `frameworks`
+- Concrete implementations for external systems.
+- Prisma repositories, cache service, event publisher/handler.
+- Examples: `src/frameworks/data-services/prisma`, `src/frameworks/cache`, `src/frameworks/events`.
+
+5. `services` (module wiring)
+- Dependency injection composition root.
+- Bind abstraction to implementation.
+- Example: `src/services/data-services/data-services.module.ts`.
+
+### How to Add a New Feature (End-to-End)
+
+1. Define business rule first in `core`.
+- Add new enum/entity/value object if needed.
+- Add or update abstraction contract if new dependency is needed.
+
+2. Implement use-case logic.
+- Add or update use-case in `src/use-cases`.
+- Keep orchestration and rule checks here.
+- Do not call Prisma/Redis directly from use-case.
+
+3. Implement infrastructure adapter.
+- If use-case needs new data access, add repository method in abstraction and implement it in Prisma repository.
+- If needed, add cache/event implementation under `src/frameworks`.
+
+4. Expose via controller.
+- Add/extend endpoint in `src/controllers`.
+- Map input DTO and output response format.
+
+5. Wire module dependencies.
+- Register provider/module in relevant Nest module (`services` or `use-cases` module).
+
+6. Add tests.
+- Unit test for use-case behavior (`src/use-cases/**/*.spec.ts`).
+- E2E/API test for endpoint contract (`test/*.e2e-spec.ts`).
+
+7. Update docs.
+- Update `README.md` API section and examples.
+- Update `docs/system-design.md` if architecture/flow changes.
+
+### Practical Rule of Thumb
+
+- If the change is business rule: start from `core` -> `use-cases`.
+- If the change is technical integration: start from `core abstraction` -> `frameworks` implementation -> `use-cases` usage.
+- If the change is API contract: start from DTO/controller, then adjust use-case if needed.
+
 ## Project Structure
 
 ```txt
