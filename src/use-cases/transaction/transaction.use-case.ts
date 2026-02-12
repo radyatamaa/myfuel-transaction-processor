@@ -189,6 +189,7 @@ export class TransactionUseCases {
         organizationId: organization.id,
         amount
       });
+      await this.syncCachesAfterMutation(payload, organization, card, result);
       if (result.status === WebhookResponseStatus.REJECTED) {
         await this.trackRejection(payload, result);
       }
@@ -332,5 +333,39 @@ export class TransactionUseCases {
     );
 
     return organization;
+  }
+
+  private async syncCachesAfterMutation(
+    payload: ProcessTransactionDto,
+    organization: Organization,
+    card: Card,
+    result: WebhookResponseDto
+  ): Promise<void> {
+    if (result.status !== WebhookResponseStatus.APPROVED) {
+      return;
+    }
+
+    const amountMinor = this.factory.toMinorUnits(payload.amount);
+    const previousBalanceMinor = this.factory.toMinorUnits(organization.currentBalance);
+    const newBalance = this.factory.fromMinorUnits(previousBalanceMinor - amountMinor);
+
+    try {
+      await this.dataServices.redisCache.set(
+        this.organizationCacheKey(organization.id),
+        {
+          ...organization,
+          currentBalance: newBalance
+        },
+        TransactionUseCases.ORGANIZATION_CACHE_TTL_SECONDS
+      );
+
+      await this.dataServices.redisCache.set(
+        this.cardCacheKey(card.cardNumber),
+        card,
+        TransactionUseCases.CARD_CACHE_TTL_SECONDS
+      );
+    } catch {
+      return;
+    }
   }
 }
