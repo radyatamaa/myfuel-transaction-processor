@@ -1,6 +1,6 @@
 # System Design
 
-This document covers Part 1 deliverables:
+This file covers Part 1:
 - Flow Diagram
 - ERD
 - High-Level Architecture
@@ -142,7 +142,7 @@ erDiagram
 ```
 
 ERD note:
-- Optional fields in code: `Transaction.rejectionReason`, `WebhookRejectionLog.cardNumber`, `WebhookRejectionLog.amount`, `WebhookRejectionLog.stationId`, `WebhookRejectionLog.transactionAt`, `WebhookRejectionLog.rawPayload`.
+- Some fields are optional in code: `Transaction.rejectionReason`, `WebhookRejectionLog.cardNumber`, `WebhookRejectionLog.amount`, `WebhookRejectionLog.stationId`, `WebhookRejectionLog.transactionAt`, `WebhookRejectionLog.rawPayload`.
 
 ## 3) High-Level Architecture
 
@@ -160,7 +160,7 @@ flowchart LR
 
 ## Design Notes
 - Business rejection returns HTTP 200 with `code=REJECTED`.
-- Idempotency uses unique `requestId` with safe replay for same payload.
-- Concurrency safety uses DB transaction and row lock.
-- History is saved in `Transaction`, `BalanceLedger`, and `WebhookRejectionLog`.
-- Easy to extend for weekly limit, vehicle limit, and organization aggregate limit.
+- Idempotency uses unique `requestId`. If payload is same, the app returns previous result.
+- The app uses DB transaction and row lock for safe concurrent update.
+- History data is saved in `Transaction`, `BalanceLedger`, and `WebhookRejectionLog`.
+- The design can be extended for weekly, vehicle, and organization total limits.
