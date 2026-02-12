@@ -158,7 +158,7 @@ export class WebhookController {
             value: {
               success: false,
               code: 'REJECTED',
-              message: 'Duplicate requestId',
+              message: 'Idempotency conflict: requestId already used with different payload',
               data: {
                 requestId: 'station-abc-20260211-0001',
                 transactionId: null,

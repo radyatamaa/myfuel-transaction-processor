@@ -45,7 +45,7 @@ Data-services composition:
 
 ## Main Business Rules
 - Idempotency by unique `requestId`:
-  - same `requestId` + same payload -> return previous result
+  - same `requestId` + same payload -> validate card first, then return previous result
   - same `requestId` + different payload -> reject (`DUPLICATE_REQUEST`)
 - Validation order: card lookup/active check first, then organization check.
 - Reject when card is not found or inactive.

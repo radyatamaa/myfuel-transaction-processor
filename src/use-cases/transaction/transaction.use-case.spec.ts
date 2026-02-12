@@ -104,13 +104,23 @@ describe('TransactionUseCases', () => {
       rejectionReason: null,
       createdAt: new Date()
     });
+    dataServices.prisma.cards.findByCardNumber.mockResolvedValue({
+      id: 'card-1',
+      organizationId: 'org-1',
+      cardNumber: payload.cardNumber,
+      dailyLimit: '1000.00',
+      monthlyLimit: '10000.00',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
 
     const useCase = new TransactionUseCases(dataServices as unknown as IDataServices, new TransactionFactoryService());
     const result = await useCase.process(payload);
 
     expect(result.status).toBe(WebhookResponseStatus.APPROVED);
     expect(result.transactionId).toBe('trx-dup');
-    expect(dataServices.prisma.cards.findByCardNumber).not.toHaveBeenCalled();
+    expect(dataServices.prisma.cards.findByCardNumber).toHaveBeenCalledWith(payload.cardNumber);
     expect(dataServices.prisma.rejectionLogs.create).not.toHaveBeenCalled();
   });
 
