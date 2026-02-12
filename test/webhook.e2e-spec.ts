@@ -5,6 +5,7 @@ import * as request from 'supertest';
 import { AppController } from '../src/controllers/app.controller';
 import { WebhookController } from '../src/controllers/webhook.controller';
 import { HttpExceptionFilter } from '../src/configuration/filters/http-exception.filter';
+import { RequestIdMiddleware } from '../src/configuration/middlewares/request-id.middleware';
 import { IDataServices } from '../src/core/abstracts';
 import { RejectionReason, TransactionStatus } from '../src/core/entities';
 import { TransactionFactoryService } from '../src/use-cases/transaction/transaction-factory.service';
@@ -101,6 +102,14 @@ describeE2E('WebhookController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    const requestIdMiddleware = new RequestIdMiddleware();
+    app.use(
+      (
+        req: { headers: Record<string, string | string[] | undefined>; requestId?: string },
+        res: { setHeader: (name: string, value: string) => void },
+        next: () => void
+      ) => requestIdMiddleware.use(req, res, next)
+    );
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
       new ValidationPipe({
