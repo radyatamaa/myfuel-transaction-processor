@@ -2,6 +2,9 @@
 
 This service handles fuel transactions from petrol station webhooks.
 
+System design document:
+- `docs/system-design.md`
+
 Project structure uses a clean layered style:
 - `controllers`
 - `core` (entities, dtos, abstracts)
