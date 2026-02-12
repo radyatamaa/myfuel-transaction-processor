@@ -27,6 +27,11 @@ type MockDataServices = {
   rejectionLogs: {
     create: jest.Mock;
   };
+  redisCache: {
+    get: jest.Mock;
+    set: jest.Mock;
+    del: jest.Mock;
+  };
   runInTransaction: jest.Mock;
 };
 
@@ -63,6 +68,11 @@ describe('TransactionUseCases', () => {
       },
       rejectionLogs: {
         create: jest.fn()
+      },
+      redisCache: {
+        get: jest.fn(),
+        set: jest.fn(),
+        del: jest.fn()
       },
       runInTransaction: jest.fn()
     };
@@ -295,7 +305,6 @@ describe('TransactionUseCases', () => {
     const useCase = new TransactionUseCases(
       dataServices as unknown as IDataServices,
       new TransactionFactoryService(),
-      undefined,
       eventPublisher
     );
     await useCase.process(payload);

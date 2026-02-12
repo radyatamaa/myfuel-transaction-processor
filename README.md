@@ -1,12 +1,12 @@
 # MyFuel Transaction Processor
 
-A NestJS webhook service to process fuel transactions.
+A NestJS webhook service for fuel transactions.
 
 ## What This Project Solves
-- Validate organization balance.
-- Validate card daily/monthly limits.
-- Approve or reject transaction.
-- Save full history for audit.
+- Check organization balance.
+- Check card daily and monthly limits.
+- Approve or reject each transaction.
+- Save history for audit.
 
 ## Tech Stack
 - Node.js 22
@@ -31,25 +31,31 @@ flowchart LR
 ```
 
 Layer mapping:
-- `src/core`: entities and contracts (`IDataServices`, `ICacheService`, `ITransactionEventPublisher`)
-- `src/use-cases`: business flow (`TransactionUseCases`)
+- `src/core`: entities and contracts (`IDataServices` with `redisCache`, `ITransactionEventPublisher`)
+- `src/use-cases`: business logic flow (`TransactionUseCases`)
 - `src/controllers`: HTTP adapter (`WebhookController`)
-- `src/frameworks`: Prisma repositories, cache service, event publisher/handler
-- `src/services`: dependency wiring modules
+- `src/frameworks`: technical implementation (`data-services/prisma`, `data-services/redis`, events)
+- `src/services`: module wiring for dependency injection
+
+Data-services composition:
+- `src/frameworks/data-services/prisma`: database repositories and `PrismaDataServicesService`
+- `src/frameworks/data-services/redis`: `RedisCacheService`
+- `src/services/data-services/data-services.module.ts`: combine Prisma and Redis data services
+- `IDataServices` is the main contract used by use-cases.
 
 ## Main Business Rules
 - Idempotency by unique `requestId`.
-- Reject when card not found/inactive.
+- Reject when card is not found or inactive.
 - Reject when organization not found.
 - Reject when insufficient balance.
-- Reject when daily/monthly limit exceeded.
+- Reject when daily or monthly limit is exceeded.
 - Approved flow updates:
   - `Transaction`
   - organization balance
   - daily/monthly usage
   - `BalanceLedger`
-- Rejected flow logs audit in `WebhookRejectionLog`.
-- Concurrency safety uses DB transaction + `FOR UPDATE` lock.
+- Rejected flow writes audit data to `WebhookRejectionLog`.
+- Concurrency safety uses DB transaction and `FOR UPDATE` lock.
 
 ## API
 Base URL: `http://localhost:3000/api/v1`
@@ -74,7 +80,7 @@ Request:
 Response style:
 - `code = SUCCESS` for approved
 - `code = REJECTED` for business rejection (HTTP 200)
-- 4xx/5xx for validation/auth/system errors
+- 4xx/5xx for validation, auth, or system errors
 
 ## Environment
 See `.env.example`.

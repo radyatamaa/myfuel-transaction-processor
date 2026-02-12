@@ -9,28 +9,28 @@ This document covers Part 1 deliverables:
 
 ```mermaid
 flowchart TD
-  A[Petrol Station sends webhook] --> B[API validate payload and API key]
+  A[Petrol station sends webhook] --> B[API validates payload and API key]
   B --> C{Duplicate requestId?}
 
   C -- Yes --> C1[Reject DUPLICATE_REQUEST]
-  C1 --> C2[Save rejection log + publish rejected event]
+  C1 --> C2[Save rejection log and publish rejected event]
   C2 --> Z1[Return HTTP 200 code=REJECTED]
 
-  C -- No --> D[Load card and organization from cache then DB]
-  D --> E{Card active and org exists?}
+  C -- No --> D[Load card and organization from cache, then DB]
+  D --> E{Card is active and organization exists?}
 
   E -- No --> E1[Reject CARD_NOT_FOUND or ORGANIZATION_NOT_FOUND]
-  E1 --> E2[Save rejection log + publish rejected event]
+  E1 --> E2[Save rejection log and publish rejected event]
   E2 --> Z1
 
   E -- Yes --> F[Start DB transaction]
-  F --> G[Lock card + org FOR UPDATE]
+  F --> G[Lock card and organization rows FOR UPDATE]
   G --> H[Read daily/monthly usage]
-  H --> I{Balance and limits valid?}
+  H --> I{Balance and limits are valid?}
 
   I -- No --> I1[Save rejected transaction]
   I1 --> I2[Commit]
-  I2 --> I3[Save rejection log + publish rejected event]
+  I2 --> I3[Save rejection log and publish rejected event]
   I3 --> Z1
 
   I -- Yes --> J[Save approved transaction]
@@ -144,8 +144,8 @@ flowchart LR
 ```
 
 ## Design Notes
-- Business reject returns HTTP 200 with `code=REJECTED`.
+- Business rejection returns HTTP 200 with `code=REJECTED`.
 - Idempotency uses unique `requestId`.
-- Concurrency safety uses DB transaction + row lock.
+- Concurrency safety uses DB transaction and row lock.
 - History is saved in `Transaction`, `BalanceLedger`, and `WebhookRejectionLog`.
-- Easy to extend for weekly limit, vehicle limit, and org aggregate limit.
+- Easy to extend for weekly limit, vehicle limit, and organization aggregate limit.

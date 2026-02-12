@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { IDataServices, ICacheService, ITransactionEventPublisher } from 'src/core/abstracts';
+import { IDataServices, ITransactionEventPublisher } from 'src/core/abstracts';
 import { ProcessTransactionDto, WebhookResponseDto } from 'src/core/dtos';
 import { BalanceLedgerType, Card, Organization, RejectionReason, WebhookResponseStatus } from 'src/core/entities';
 import { TransactionFactoryService } from './transaction-factory.service';
@@ -13,9 +13,6 @@ export class TransactionUseCases {
   constructor(
     @Inject(IDataServices) private readonly dataServices: IDataServices,
     private readonly factory: TransactionFactoryService,
-    @Optional()
-    @Inject(ICacheService)
-    private readonly cacheService?: ICacheService,
     @Optional()
     @Inject(ITransactionEventPublisher)
     private readonly eventPublisher?: ITransactionEventPublisher
@@ -297,7 +294,7 @@ export class TransactionUseCases {
 
   private async getCardByCardNumber(cardNumber: string): Promise<Card | null> {
     const cacheKey = this.cardCacheKey(cardNumber);
-    const cached = await this.cacheService?.get<Card>(cacheKey);
+    const cached = await this.dataServices.redisCache.get<Card>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -307,7 +304,7 @@ export class TransactionUseCases {
       return null;
     }
 
-    await this.cacheService?.set(
+    await this.dataServices.redisCache.set(
       cacheKey,
       card,
       TransactionUseCases.CARD_CACHE_TTL_SECONDS
@@ -318,7 +315,7 @@ export class TransactionUseCases {
 
   private async getOrganizationById(organizationId: string): Promise<Organization | null> {
     const cacheKey = this.organizationCacheKey(organizationId);
-    const cached = await this.cacheService?.get<Organization>(cacheKey);
+    const cached = await this.dataServices.redisCache.get<Organization>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -328,7 +325,7 @@ export class TransactionUseCases {
       return null;
     }
 
-    await this.cacheService?.set(
+    await this.dataServices.redisCache.set(
       cacheKey,
       organization,
       TransactionUseCases.ORGANIZATION_CACHE_TTL_SECONDS

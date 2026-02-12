@@ -35,6 +35,11 @@ type MockDataServices = {
   rejectionLogs: {
     create: jest.Mock;
   };
+  redisCache: {
+    get: jest.Mock;
+    set: jest.Mock;
+    del: jest.Mock;
+  };
   runInTransaction: jest.Mock;
 };
 
@@ -62,6 +67,11 @@ function createMockDataServices(): MockDataServices {
     },
     rejectionLogs: {
       create: jest.fn()
+    },
+    redisCache: {
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn()
     },
     runInTransaction: jest.fn()
   };

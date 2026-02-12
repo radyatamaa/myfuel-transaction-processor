@@ -8,8 +8,8 @@ type CacheEntry = {
 };
 
 @Injectable()
-export class CacheService implements ICacheService, OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(CacheService.name);
+export class RedisCacheService implements ICacheService, OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RedisCacheService.name);
   private readonly inMemoryCache = new Map<string, CacheEntry>();
   private keyPrefix = 'myfuel:cache:';
   private redisClient: {
@@ -41,7 +41,7 @@ export class CacheService implements ICacheService, OnModuleInit, OnModuleDestro
         'specifier',
         'return import(specifier)'
       ) as (specifier: string) => Promise<{
-        createClient: (options: { url: string; database?: number }) => CacheService['redisClient'];
+        createClient: (options: { url: string; database?: number }) => RedisCacheService['redisClient'];
       }>;
       const redisModule = await dynamicImport('redis');
       const client = redisModule.createClient({ url: redisUrl, database: redisDb });
