@@ -112,5 +112,5 @@ ENABLE_E2E_SOCKET=true npm run test:e2e -- --runInBand
 ```
 
 ## Assessment Deliverables
-- System design: `docs/system-design.md`
-- CI workflow: `.github/workflows/ci.yml`
+- System design: [docs/system-design.md](./docs/system-design.md)
+- CI workflow: [.github/workflows/ci.yml](./.github/workflows/ci.yml)
