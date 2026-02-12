@@ -105,6 +105,9 @@ Response style:
 - `code = REJECTED` for business rejection (HTTP 200)
 - 4xx/5xx for validation, auth, or server errors
 
+## API Documentation
+![Swagger API Documentation](./swagger.gif)
+
 ## Setup and Run
 1. Use Node.js 22
 ```bash
