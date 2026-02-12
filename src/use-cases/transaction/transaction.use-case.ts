@@ -310,7 +310,7 @@ export class TransactionUseCases {
 
     return this.factory.buildRejectedWithTransactionId(
       existing.requestId,
-      existing.rejectionReason ?? RejectionReason.DUPLICATE_REQUEST,
+      RejectionReason.DUPLICATE_REQUEST,
       'Duplicate requestId',
       existing.id
     );

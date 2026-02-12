@@ -62,7 +62,9 @@ Data-services composition:
 
 ## Main Business Rules
 - Idempotency by unique `requestId`:
-  - same `requestId` + same payload -> validate card first, then return previous result
+  - same `requestId` + same payload -> validate card first, then:
+    - if existing transaction is `APPROVED`, return approved replay
+    - if existing transaction is `REJECTED`, return `DUPLICATE_REQUEST`
   - same `requestId` + different payload -> reject (`DUPLICATE_REQUEST`)
 - Validation order: card lookup/active check first, then organization check.
 - Reject when card is not found or inactive.
@@ -81,6 +83,7 @@ Data-services composition:
 - Business rejection uses HTTP 200 with `code=REJECTED`.
   This keeps webhook retry behavior simple, but it reduces HTTP semantic clarity.
 - Idempotency check uses `requestId` plus key fields (station, amount, transaction time).
+  For safe replay, same payload only replays `APPROVED`; previous `REJECTED` returns `DUPLICATE_REQUEST`.
   This is lightweight and practical, but not as strict as full payload hashing.
 - Redis is a performance layer, not a source of truth.
   If Redis is unavailable, service falls back to in-memory cache and PostgreSQL reads.

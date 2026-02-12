@@ -18,11 +18,14 @@ flowchart TD
   C3 -- No --> C4[Reject CARD_NOT_FOUND]
   C4 --> C5[Save rejection log and publish rejected event]
   C5 --> Z1[Return HTTP 200 code=REJECTED]
-  C3 -- Yes --> C6[Return previous result]
-  C6 --> Z0[Return HTTP 200 code=SUCCESS or REJECTED]
-  C1 -- No --> C7[Reject DUPLICATE_REQUEST]
-  C7 --> C8[Save rejection log and publish rejected event]
+  C3 -- Yes --> C6{Existing status APPROVED?}
+  C6 -- Yes --> C7[Return approved replay result]
+  C7 --> Z2[Return HTTP 200 code=SUCCESS]
+  C6 -- No --> C8[Return DUPLICATE_REQUEST]
   C8 --> Z1
+  C1 -- No --> C10[Reject DUPLICATE_REQUEST]
+  C10 --> C11[Save rejection log and publish rejected event]
+  C11 --> Z1
 
   C -- No --> D[Load card by cardNumber from cache, then DB]
   D --> E{Card exists and active?}
