@@ -1,12 +1,21 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Req } from '@nestjs/common';
+
+interface RequestLike {
+  requestId?: string;
+}
 
 @Controller('health')
 export class AppController {
   @Get()
-  health() {
+  health(@Req() request: RequestLike) {
     return {
       success: true,
-      message: 'ok'
+      code: 'SUCCESS',
+      message: 'ok',
+      data: {},
+      errors: null,
+      timestamp: new Date().toISOString(),
+      request_id: request.requestId
     };
   }
 }

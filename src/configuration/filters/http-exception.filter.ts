@@ -8,13 +8,46 @@ import {
 import { Prisma } from '@prisma/client';
 
 interface ErrorResponseBody {
-  success: false;
-  statusCode: number;
-  error: string;
-  message: string | string[];
-  path: string;
+  success: boolean;
+  code: string;
+  message: string;
+  data: Record<string, unknown>;
+  errors: Array<{ field: string; message: string }> | null;
   timestamp: string;
-  requestId?: string;
+  request_id?: string;
+}
+
+function mapStatusCode(status: number): string {
+  if (status === HttpStatus.BAD_REQUEST) {
+    return 'BAD_REQUEST';
+  }
+  if (status === HttpStatus.UNAUTHORIZED) {
+    return 'UNAUTHORIZED';
+  }
+  if (status === HttpStatus.FORBIDDEN) {
+    return 'FORBIDDEN';
+  }
+  if (status === HttpStatus.NOT_FOUND) {
+    return 'NOT_FOUND';
+  }
+  if (status === HttpStatus.CONFLICT) {
+    return 'CONFLICT';
+  }
+
+  return 'INTERNAL_SERVER_ERROR';
+}
+
+function toErrors(message: string | string[]): Array<{ field: string; message: string }> {
+  const messages = Array.isArray(message) ? message : [message];
+
+  return messages.map((entry) => {
+    const trimmed = entry.trim();
+    const field = trimmed.split(' ')[0] || 'general';
+    return {
+      field,
+      message: trimmed
+    };
+  });
 }
 
 @Catch()
@@ -22,7 +55,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<{ status: (code: number) => { json: (body: unknown) => void } }>();
-    const request = ctx.getRequest<{ url: string; requestId?: string }>();
+    const request = ctx.getRequest<{ requestId?: string }>();
     const requestId = request.requestId;
 
     const fallbackMessage = 'Internal server error';
@@ -37,12 +70,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
       const body: ErrorResponseBody = {
         success: false,
-        statusCode: status,
-        error: HttpStatus[status] ?? 'HttpException',
-        message,
-        path: request.url,
+        code: mapStatusCode(status),
+        message: Array.isArray(message) ? 'Validation failed' : message,
+        data: {},
+        errors: toErrors(message),
         timestamp: new Date().toISOString(),
-        requestId
+        request_id: requestId
       };
 
       response.status(status).json(body);
@@ -55,12 +88,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     ) {
       const body: ErrorResponseBody = {
         success: false,
-        statusCode: HttpStatus.CONFLICT,
-        error: HttpStatus[HttpStatus.CONFLICT],
+        code: 'CONFLICT',
         message: 'Conflict: duplicate unique value',
-        path: request.url,
+        data: {},
+        errors: [{ field: 'request', message: 'Conflict: duplicate unique value' }],
         timestamp: new Date().toISOString(),
-        requestId
+        request_id: requestId
       };
 
       response.status(HttpStatus.CONFLICT).json(body);
@@ -69,12 +102,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const body: ErrorResponseBody = {
       success: false,
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      error: HttpStatus[HttpStatus.INTERNAL_SERVER_ERROR],
+      code: 'INTERNAL_SERVER_ERROR',
       message: fallbackMessage,
-      path: request.url,
+      data: {},
+      errors: [{ field: 'server', message: fallbackMessage }],
       timestamp: new Date().toISOString(),
-      requestId
+      request_id: requestId
     };
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(body);

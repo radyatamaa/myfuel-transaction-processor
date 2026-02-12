@@ -133,7 +133,13 @@ describeE2E('WebhookController (e2e)', () => {
       .get('/api/v1/health')
       .expect(200)
       .expect(({ body }) => {
-        expect(body).toEqual({ success: true, message: 'ok' });
+        expect(body.success).toBe(true);
+        expect(body.code).toBe('SUCCESS');
+        expect(body.message).toBe('ok');
+        expect(body.data).toEqual({});
+        expect(body.errors).toBeNull();
+        expect(typeof body.timestamp).toBe('string');
+        expect(typeof body.request_id).toBe('string');
       });
   });
 
@@ -148,7 +154,12 @@ describeE2E('WebhookController (e2e)', () => {
       .expect(400)
       .expect(({ body }) => {
         expect(body.success).toBe(false);
-        expect(body.statusCode).toBe(400);
+        expect(body.code).toBe('BAD_REQUEST');
+        expect(body.message).toBe('Validation failed');
+        expect(body.data).toEqual({});
+        expect(Array.isArray(body.errors)).toBe(true);
+        expect(typeof body.timestamp).toBe('string');
+        expect(typeof body.request_id).toBe('string');
       });
   });
 
@@ -210,8 +221,12 @@ describeE2E('WebhookController (e2e)', () => {
       .expect(200)
       .expect(({ body }) => {
         expect(body.success).toBe(true);
-        expect(body.status).toBe('APPROVED');
-        expect(body.transactionId).toBe('trx-approved');
+        expect(body.code).toBe('SUCCESS');
+        expect(body.data.transaction_id).toBe('trx-approved');
+        expect(body.data.reason).toBeNull();
+        expect(body.errors).toBeNull();
+        expect(typeof body.timestamp).toBe('string');
+        expect(typeof body.request_id).toBe('string');
       });
   });
 
@@ -273,9 +288,16 @@ describeE2E('WebhookController (e2e)', () => {
       .expect(200)
       .expect(({ body }) => {
         expect(body.success).toBe(false);
-        expect(body.status).toBe('REJECTED');
-        expect(body.reason).toBe('INSUFFICIENT_BALANCE');
-        expect(body.transactionId).toBe('trx-rejected');
+        expect(body.code).toBe('REJECTED');
+        expect(body.data.reason).toBe('INSUFFICIENT_BALANCE');
+        expect(body.data.transaction_id).toBe('trx-rejected');
+        expect(Array.isArray(body.errors)).toBe(true);
+        expect(body.errors[0]).toEqual({
+          field: 'reason',
+          message: 'INSUFFICIENT_BALANCE'
+        });
+        expect(typeof body.timestamp).toBe('string');
+        expect(typeof body.request_id).toBe('string');
       });
   });
 });
