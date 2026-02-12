@@ -2,6 +2,10 @@
 
 A NestJS webhook service for fuel transactions.
 
+## Assessment Deliverables
+- System design: [docs/system-design.md](./docs/system-design.md)
+- CI workflow: [.github/workflows/ci.yml](./.github/workflows/ci.yml)
+
 ## What This Project Solves
 - Check organization balance.
 - Check card daily and monthly limits.
@@ -130,7 +134,3 @@ npm test -- --runInBand
 npm run test:e2e -- --runInBand
 npm run build
 ```
-
-## Assessment Deliverables
-- System design: [docs/system-design.md](./docs/system-design.md)
-- CI workflow: [.github/workflows/ci.yml](./.github/workflows/ci.yml)
