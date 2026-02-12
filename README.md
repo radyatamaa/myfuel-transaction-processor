@@ -1,10 +1,23 @@
 # MyFuel Transaction Processor
 
-A NestJS webhook service for fuel transactions.
+A NestJS webhook service to process fuel transactions.
 
 ## Assessment Deliverables
 - System design: [docs/system-design.md](./docs/system-design.md)
 - CI workflow: [.github/workflows/ci.yml](./.github/workflows/ci.yml)
+
+## System Design (Highlight)
+Main design document: [docs/system-design.md](./docs/system-design.md)
+
+Quick navigation:
+- Flow Diagram: [1) Flow Diagram](./docs/system-design.md#1-flow-diagram)
+- ERD: [2) ERD](./docs/system-design.md#2-erd)
+- High-Level Architecture: [3) High-Level Architecture](./docs/system-design.md#3-high-level-architecture)
+
+Key design focus:
+- Handle many requests with DB transaction and row lock (`FOR UPDATE`)
+- Keep history data (`Transaction`, `BalanceLedger`, `WebhookRejectionLog`)
+- Easy to add new rules later (weekly, vehicle, organization total)
 
 ## What This Project Solves
 - Check organization balance.
@@ -37,15 +50,15 @@ flowchart LR
 
 Layer mapping:
 - `src/core`: entities and contracts (`IDataServices`, `ITransactionEventPublisher`)
-- `src/use-cases`: business logic flow (`TransactionUseCases`)
-- `src/controllers`: HTTP adapter (`WebhookController`)
-- `src/frameworks`: technical implementation (`data-services/prisma`, `data-services/redis`, events)
+- `src/use-cases`: business logic (`TransactionUseCases`)
+- `src/controllers`: HTTP layer (`WebhookController`)
+- `src/frameworks`: Prisma, Redis, and event implementation
 - `src/services`: module wiring for dependency injection
 
 Data-services composition:
-- `IDataServices.prisma`: all database repositories
-- `IDataServices.redis`: Redis cache access
-- `src/services/data-services/data-services.service.ts`: combine Prisma + Redis in one service for use-cases
+- `IDataServices.prisma`: all DB repositories
+- `IDataServices.redis`: Redis cache
+- `src/services/data-services/data-services.service.ts`: combine Prisma and Redis for use-cases
 
 ## Main Business Rules
 - Idempotency by unique `requestId`:
@@ -62,7 +75,7 @@ Data-services composition:
   - daily/monthly usage
   - `BalanceLedger`
 - Rejected flow writes audit data to `WebhookRejectionLog`.
-- Concurrency safety uses DB transaction and `FOR UPDATE` lock.
+- Safe concurrent update uses DB transaction and `FOR UPDATE` lock.
 
 ## API
 Base URL: `http://localhost:3000/api/v1`
@@ -90,7 +103,7 @@ Request:
 Response style:
 - `code = SUCCESS` for approved
 - `code = REJECTED` for business rejection (HTTP 200)
-- 4xx/5xx for validation, auth, or system errors
+- 4xx/5xx for validation, auth, or server errors
 
 ## Setup and Run
 1. Use Node.js 22
