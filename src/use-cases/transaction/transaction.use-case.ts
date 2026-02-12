@@ -2,7 +2,15 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { IDataServices, ITransactionEventPublisher } from 'src/core/abstracts';
 import { ProcessTransactionDto, WebhookResponseDto } from 'src/core/dtos';
-import { BalanceLedgerType, Card, Organization, RejectionReason, WebhookResponseStatus } from 'src/core/entities';
+import {
+  BalanceLedgerType,
+  Card,
+  Organization,
+  RejectionReason,
+  Transaction,
+  TransactionStatus,
+  WebhookResponseStatus
+} from 'src/core/entities';
 import { TransactionFactoryService } from './transaction-factory.service';
 
 @Injectable()
@@ -33,10 +41,14 @@ export class TransactionUseCases {
 
     const existingTransaction = await this.dataServices.prisma.transactions.findByRequestId(payload.requestId);
     if (existingTransaction) {
+      if (this.isDuplicatePayloadSame(existingTransaction, payload)) {
+        return this.buildReplayResult(existingTransaction);
+      }
+
       const result = this.factory.buildRejected(
         payload.requestId,
         RejectionReason.DUPLICATE_REQUEST,
-        'Duplicate requestId'
+        'Idempotency conflict: requestId already used with different payload'
       );
       await this.trackRejection(payload, result);
       await this.publishResultSafely(payload, result);
@@ -268,6 +280,30 @@ export class TransactionUseCases {
       return cardNumber;
     }
     return `${'*'.repeat(Math.max(0, cardNumber.length - 4))}${cardNumber.slice(-4)}`;
+  }
+
+  private isDuplicatePayloadSame(existing: Transaction, payload: ProcessTransactionDto): boolean {
+    const existingAmountMinor = this.factory.toMinorUnits(existing.amount);
+    const payloadAmountMinor = this.factory.toMinorUnits(payload.amount);
+
+    return (
+      existing.stationId === payload.stationId &&
+      existingAmountMinor === payloadAmountMinor &&
+      existing.trxAt.getTime() === new Date(payload.transactionAt).getTime()
+    );
+  }
+
+  private buildReplayResult(existing: Transaction): WebhookResponseDto {
+    if (existing.status === TransactionStatus.APPROVED) {
+      return this.factory.buildApproved(existing.requestId, existing.id);
+    }
+
+    return this.factory.buildRejectedWithTransactionId(
+      existing.requestId,
+      existing.rejectionReason ?? RejectionReason.DUPLICATE_REQUEST,
+      'Duplicate requestId',
+      existing.id
+    );
   }
 
   private async trackRejection(

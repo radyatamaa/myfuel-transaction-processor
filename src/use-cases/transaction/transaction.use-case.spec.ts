@@ -90,7 +90,7 @@ describe('TransactionUseCases', () => {
     return dataServices;
   }
 
-  it('returns rejected when requestId is duplicate', async () => {
+  it('returns previous result when requestId is duplicate with same payload', async () => {
     const dataServices = createMockDataServices();
     dataServices.prisma.transactions.findByRequestId.mockResolvedValue({
       id: 'trx-dup',
@@ -108,8 +108,33 @@ describe('TransactionUseCases', () => {
     const useCase = new TransactionUseCases(dataServices as unknown as IDataServices, new TransactionFactoryService());
     const result = await useCase.process(payload);
 
+    expect(result.status).toBe(WebhookResponseStatus.APPROVED);
+    expect(result.transactionId).toBe('trx-dup');
+    expect(dataServices.prisma.cards.findByCardNumber).not.toHaveBeenCalled();
+    expect(dataServices.prisma.rejectionLogs.create).not.toHaveBeenCalled();
+  });
+
+  it('returns rejected when requestId is duplicate with different payload', async () => {
+    const dataServices = createMockDataServices();
+    dataServices.prisma.transactions.findByRequestId.mockResolvedValue({
+      id: 'trx-dup',
+      requestId: payload.requestId,
+      organizationId: 'org-1',
+      cardId: 'card-1',
+      stationId: 'SPBU-2',
+      amount: '100.00',
+      trxAt: new Date(payload.transactionAt),
+      status: TransactionStatus.APPROVED,
+      rejectionReason: null,
+      createdAt: new Date()
+    });
+
+    const useCase = new TransactionUseCases(dataServices as unknown as IDataServices, new TransactionFactoryService());
+    const result = await useCase.process(payload);
+
     expect(result.status).toBe(WebhookResponseStatus.REJECTED);
     expect(result.reason).toBe(RejectionReason.DUPLICATE_REQUEST);
+    expect(result.message).toContain('Idempotency conflict');
     expect(dataServices.prisma.cards.findByCardNumber).not.toHaveBeenCalled();
     expect(dataServices.prisma.rejectionLogs.create).toHaveBeenCalledTimes(1);
   });

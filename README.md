@@ -43,7 +43,9 @@ Data-services composition:
 - `src/services/data-services/data-services.service.ts`: combine Prisma + Redis in one service for use-cases
 
 ## Main Business Rules
-- Idempotency by unique `requestId`.
+- Idempotency by unique `requestId`:
+  - same `requestId` + same payload -> return previous result
+  - same `requestId` + different payload -> reject (`DUPLICATE_REQUEST`)
 - Reject when card is not found or inactive.
 - Reject when organization not found.
 - Reject when insufficient balance.
