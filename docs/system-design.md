@@ -9,17 +9,17 @@ This document covers Part 1 deliverables:
 
 ```mermaid
 flowchart TD
-  A[Petrol Station sends webhook] --> B[API validate payload + API key]
+  A[Petrol Station sends webhook] --> B[API validate payload and API key]
   B --> C{Duplicate requestId?}
 
   C -- Yes --> C1[Reject DUPLICATE_REQUEST]
   C1 --> C2[Save rejection log + publish rejected event]
   C2 --> Z1[Return HTTP 200 code=REJECTED]
 
-  C -- No --> D[Load card and organization (cache -> DB)]
+  C -- No --> D[Load card and organization from cache then DB]
   D --> E{Card active and org exists?}
 
-  E -- No --> E1[Reject CARD_NOT_FOUND / ORGANIZATION_NOT_FOUND]
+  E -- No --> E1[Reject CARD_NOT_FOUND or ORGANIZATION_NOT_FOUND]
   E1 --> E2[Save rejection log + publish rejected event]
   E2 --> Z1
 
@@ -97,7 +97,7 @@ erDiagram
     decimal amount
     datetime trxAt
     enum status
-    enum rejectionReason nullable
+    enum rejectionReason
     datetime createdAt
   }
 
@@ -116,16 +116,19 @@ erDiagram
   WEBHOOK_REJECTION_LOG {
     uuid id PK
     string requestId
-    string cardNumber nullable
-    decimal amount nullable
-    string stationId nullable
-    datetime transactionAt nullable
+    string cardNumber
+    decimal amount
+    string stationId
+    datetime transactionAt
     enum reason
     string message
-    json rawPayload nullable
+    json rawPayload
     datetime createdAt
   }
 ```
+
+ERD note:
+- Optional fields in code: `Transaction.rejectionReason`, `WebhookRejectionLog.cardNumber`, `WebhookRejectionLog.amount`, `WebhookRejectionLog.stationId`, `WebhookRejectionLog.transactionAt`, `WebhookRejectionLog.rawPayload`.
 
 ## 3) High-Level Architecture
 
