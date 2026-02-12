@@ -64,6 +64,9 @@ Swagger: `http://localhost:3000/swagger`
 ### `POST /webhooks/transactions`
 Header:
 - `x-api-key: <WEBHOOK_API_KEY>`
+- Optional (if signature is enabled):
+  - `x-timestamp: <unix-seconds>`
+  - `x-signature: <sha256_hmac_of_timestamp_dot_body>`
 
 Request:
 ```json
@@ -87,6 +90,8 @@ See `.env.example`.
 Important keys:
 - `DATABASE_URL`
 - `WEBHOOK_API_KEY`
+- `WEBHOOK_SIGNATURE_SECRET` (optional)
+- `WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS` (optional)
 - `REDIS_URL` (optional)
 - `REDIS_KEY_PREFIX` (optional)
 - `REDIS_DB` (optional)

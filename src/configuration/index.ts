@@ -16,6 +16,10 @@ export default () => ({
     db: Number(process.env.REDIS_DB ?? 0)
   },
   security: {
-    webhookApiKey: process.env.WEBHOOK_API_KEY ?? ''
+    webhookApiKey: process.env.WEBHOOK_API_KEY ?? '',
+    webhookSignatureSecret: process.env.WEBHOOK_SIGNATURE_SECRET ?? '',
+    webhookTimestampToleranceSeconds: Number(
+      process.env.WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS ?? 300
+    )
   }
 });
