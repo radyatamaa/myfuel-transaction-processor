@@ -144,7 +144,12 @@ Response:
 ```json
 {
   "success": true,
-  "message": "ok"
+  "code": "SUCCESS",
+  "message": "ok",
+  "data": {},
+  "errors": null,
+  "timestamp": "2026-02-12T10:00:00.000Z",
+  "requestId": "a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d"
 }
 ```
 
@@ -171,11 +176,16 @@ Response (approved):
 ```json
 {
   "success": true,
-  "status": "APPROVED",
+  "code": "SUCCESS",
   "message": "Transaction approved and persisted.",
-  "reason": null,
-  "requestId": "station-abc-20260211-0001",
-  "transactionId": "uuid"
+  "data": {
+    "requestId": "station-abc-20260211-0001",
+    "transactionId": "uuid",
+    "reason": null
+  },
+  "errors": null,
+  "timestamp": "2026-02-12T10:00:00.000Z",
+  "requestId": "a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d"
 }
 ```
 
@@ -184,11 +194,21 @@ Response (rejected):
 ```json
 {
   "success": false,
-  "status": "REJECTED",
+  "code": "REJECTED",
   "message": "Insufficient organization balance",
-  "reason": "INSUFFICIENT_BALANCE",
-  "requestId": "station-abc-20260211-0001",
-  "transactionId": "uuid"
+  "data": {
+    "requestId": "station-abc-20260211-0001",
+    "transactionId": "uuid",
+    "reason": "INSUFFICIENT_BALANCE"
+  },
+  "errors": [
+    {
+      "field": "reason",
+      "message": "INSUFFICIENT_BALANCE"
+    }
+  ],
+  "timestamp": "2026-02-12T10:00:00.000Z",
+  "requestId": "a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d"
 }
 ```
 
@@ -212,10 +232,15 @@ Error response format (example):
 ```json
 {
   "success": false,
-  "statusCode": 400,
-  "error": "BadRequest",
-  "message": ["amount must be a positive number"],
-  "path": "/api/v1/webhooks/transactions",
+  "code": "BAD_REQUEST",
+  "message": "Validation failed",
+  "data": {},
+  "errors": [
+    {
+      "field": "amount",
+      "message": "amount must be a positive number"
+    }
+  ],
   "timestamp": "2026-02-11T10:00:00.000Z",
   "requestId": "a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d"
 }

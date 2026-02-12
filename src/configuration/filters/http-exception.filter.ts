@@ -14,7 +14,7 @@ interface ErrorResponseBody {
   data: Record<string, unknown>;
   errors: Array<{ field: string; message: string }> | null;
   timestamp: string;
-  request_id?: string;
+  requestId?: string;
 }
 
 function mapStatusCode(status: number): string {
@@ -75,7 +75,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         data: {},
         errors: toErrors(message),
         timestamp: new Date().toISOString(),
-        request_id: requestId
+        requestId: requestId
       };
 
       response.status(status).json(body);
@@ -93,7 +93,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         data: {},
         errors: [{ field: 'request', message: 'Conflict: duplicate unique value' }],
         timestamp: new Date().toISOString(),
-        request_id: requestId
+        requestId: requestId
       };
 
       response.status(HttpStatus.CONFLICT).json(body);
@@ -107,7 +107,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       data: {},
       errors: [{ field: 'server', message: fallbackMessage }],
       timestamp: new Date().toISOString(),
-      request_id: requestId
+      requestId: requestId
     };
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(body);
