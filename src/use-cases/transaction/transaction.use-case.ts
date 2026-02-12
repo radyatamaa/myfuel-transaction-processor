@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { IDataServices, ITransactionEventPublisher } from 'src/core/abstracts';
 import { ProcessTransactionDto, WebhookResponseDto } from 'src/core/dtos';
@@ -9,6 +9,7 @@ import { TransactionFactoryService } from './transaction-factory.service';
 export class TransactionUseCases {
   private static readonly CARD_CACHE_TTL_SECONDS = 60;
   private static readonly ORGANIZATION_CACHE_TTL_SECONDS = 60;
+  private readonly logger = new Logger(TransactionUseCases.name);
 
   constructor(
     @Inject(IDataServices) private readonly dataServices: IDataServices,
@@ -19,6 +20,17 @@ export class TransactionUseCases {
   ) {}
 
   async process(payload: ProcessTransactionDto): Promise<WebhookResponseDto> {
+    const startedAt = Date.now();
+    this.logger.log(
+      JSON.stringify({
+        event: 'transaction_received',
+        requestId: payload.requestId,
+        cardNumber: this.maskCardNumber(payload.cardNumber),
+        stationId: payload.stationId,
+        amount: payload.amount
+      })
+    );
+
     const existingTransaction = await this.dataServices.prisma.transactions.findByRequestId(payload.requestId);
     if (existingTransaction) {
       const result = this.factory.buildRejected(
@@ -28,6 +40,7 @@ export class TransactionUseCases {
       );
       await this.trackRejection(payload, result);
       await this.publishResultSafely(payload, result);
+      this.logBusinessRejection(result.reason, payload.requestId, startedAt);
       return result;
     }
 
@@ -40,6 +53,7 @@ export class TransactionUseCases {
       );
       await this.trackRejection(payload, result);
       await this.publishResultSafely(payload, result);
+      this.logBusinessRejection(result.reason, payload.requestId, startedAt);
       return result;
     }
 
@@ -52,6 +66,7 @@ export class TransactionUseCases {
       );
       await this.trackRejection(payload, result);
       await this.publishResultSafely(payload, result);
+      this.logBusinessRejection(result.reason, payload.requestId, startedAt);
       return result;
     }
 
@@ -192,6 +207,16 @@ export class TransactionUseCases {
       await this.syncCachesAfterMutation(payload, organization, card, result);
       if (result.status === WebhookResponseStatus.REJECTED) {
         await this.trackRejection(payload, result);
+        this.logBusinessRejection(result.reason, payload.requestId, startedAt);
+      } else {
+        this.logger.log(
+          JSON.stringify({
+            event: 'transaction_approved',
+            requestId: payload.requestId,
+            transactionId: result.transactionId,
+            durationMs: Date.now() - startedAt
+          })
+        );
       }
 
       return result;
@@ -207,11 +232,42 @@ export class TransactionUseCases {
         );
         await this.trackRejection(payload, result);
         await this.publishResultSafely(payload, result);
+        this.logBusinessRejection(result.reason, payload.requestId, startedAt);
         return result;
       }
 
+      this.logger.error(
+        JSON.stringify({
+          event: 'transaction_failed',
+          requestId: payload.requestId,
+          durationMs: Date.now() - startedAt
+        }),
+        error instanceof Error ? error.stack : undefined
+      );
       throw error;
     }
+  }
+
+  private logBusinessRejection(
+    reason: RejectionReason | null | undefined,
+    requestId: string,
+    startedAt: number
+  ): void {
+    this.logger.warn(
+      JSON.stringify({
+        event: 'transaction_rejected',
+        requestId,
+        reason: reason ?? null,
+        durationMs: Date.now() - startedAt
+      })
+    );
+  }
+
+  private maskCardNumber(cardNumber: string): string {
+    if (cardNumber.length <= 4) {
+      return cardNumber;
+    }
+    return `${'*'.repeat(Math.max(0, cardNumber.length - 4))}${cardNumber.slice(-4)}`;
   }
 
   private async trackRejection(

@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Logger, Post, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -16,6 +16,8 @@ import { TransactionUseCases } from 'src/use-cases/transaction/transaction.use-c
 @ApiTags('Webhook')
 @Controller('webhooks')
 export class WebhookController {
+  private readonly logger = new Logger(WebhookController.name);
+
   constructor(private readonly transactionUseCases: TransactionUseCases) {}
 
   @Post('transactions')
@@ -221,8 +223,26 @@ export class WebhookController {
     timestamp: string;
     requestId?: string;
   }> {
+    const startedAt = Date.now();
+    this.logger.log(
+      JSON.stringify({
+        event: 'webhook_request',
+        requestId: request.requestId,
+        payloadRequestId: body.requestId
+      })
+    );
+
     const result: WebhookResponseDto = await this.transactionUseCases.process(body);
     const isRejected = result.status === WebhookResponseStatus.REJECTED;
+    this.logger.log(
+      JSON.stringify({
+        event: 'webhook_response',
+        requestId: request.requestId,
+        payloadRequestId: body.requestId,
+        code: isRejected ? 'REJECTED' : 'SUCCESS',
+        durationMs: Date.now() - startedAt
+      })
+    );
 
     return {
       success: result.success,
