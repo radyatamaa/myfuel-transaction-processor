@@ -89,9 +89,7 @@ function createMockDataServices(): MockDataServices {
   return dataServices;
 }
 
-const describeE2E = process.env.ENABLE_E2E_SOCKET === 'true' ? describe : describe.skip;
-
-describeE2E('WebhookController (e2e)', () => {
+describe('WebhookController (e2e)', () => {
   let app: INestApplication;
   const dataServices = createMockDataServices();
   const httpApp = () => app.getHttpServer();

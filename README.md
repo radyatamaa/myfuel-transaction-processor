@@ -31,17 +31,16 @@ flowchart LR
 ```
 
 Layer mapping:
-- `src/core`: entities and contracts (`IDataServices` with `redisCache`, `ITransactionEventPublisher`)
+- `src/core`: entities and contracts (`IDataServices`, `ITransactionEventPublisher`)
 - `src/use-cases`: business logic flow (`TransactionUseCases`)
 - `src/controllers`: HTTP adapter (`WebhookController`)
 - `src/frameworks`: technical implementation (`data-services/prisma`, `data-services/redis`, events)
 - `src/services`: module wiring for dependency injection
 
 Data-services composition:
-- `src/frameworks/data-services/prisma`: database repositories and `PrismaDataServicesService`
-- `src/frameworks/data-services/redis`: `RedisCacheService`
-- `src/services/data-services/data-services.module.ts`: combine Prisma and Redis data services
-- `IDataServices` is the main contract used by use-cases.
+- `IDataServices.prisma`: all database repositories
+- `IDataServices.redis`: Redis cache access
+- `src/services/data-services/data-services.service.ts`: combine Prisma + Redis in one service for use-cases
 
 ## Main Business Rules
 - Idempotency by unique `requestId`.
@@ -109,12 +108,8 @@ npm run db:bootstrap
 ```bash
 npm run lint
 npm test -- --runInBand
+npm run test:e2e -- --runInBand
 npm run build
-```
-
-E2E:
-```bash
-ENABLE_E2E_SOCKET=true npm run test:e2e -- --runInBand
 ```
 
 ## Assessment Deliverables
