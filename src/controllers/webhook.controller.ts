@@ -71,24 +71,99 @@ export class WebhookController {
               requestId: 'a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d'
             }
           },
-          rejected: {
-            summary: 'Rejected transaction',
+          rejectedCardNotFound: {
+            summary: 'Rejected - CARD_NOT_FOUND',
+            value: {
+              success: false,
+              code: 'REJECTED',
+              message: 'Card not found or inactive',
+              data: {
+                requestId: 'station-abc-20260211-0002',
+                transactionId: null,
+                reason: 'CARD_NOT_FOUND'
+              },
+              errors: null,
+              timestamp: '2026-02-12T10:01:00.000Z',
+              requestId: 'a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d'
+            }
+          },
+          rejectedOrganizationNotFound: {
+            summary: 'Rejected - ORGANIZATION_NOT_FOUND',
+            value: {
+              success: false,
+              code: 'REJECTED',
+              message: 'Organization not found',
+              data: {
+                requestId: 'station-abc-20260211-0003',
+                transactionId: null,
+                reason: 'ORGANIZATION_NOT_FOUND'
+              },
+              errors: null,
+              timestamp: '2026-02-12T10:01:30.000Z',
+              requestId: 'a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d'
+            }
+          },
+          rejectedInsufficientBalance: {
+            summary: 'Rejected - INSUFFICIENT_BALANCE',
             value: {
               success: false,
               code: 'REJECTED',
               message: 'Insufficient organization balance',
               data: {
-                requestId: 'station-abc-20260211-0002',
+                requestId: 'station-abc-20260211-0004',
                 transactionId: 'f7b37d7f-1519-4d82-9cd5-5adb73be36ad',
                 reason: 'INSUFFICIENT_BALANCE'
               },
-              errors: [
-                {
-                  field: 'reason',
-                  message: 'INSUFFICIENT_BALANCE'
-                }
-              ],
+              errors: null,
               timestamp: '2026-02-12T10:01:00.000Z',
+              requestId: 'a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d'
+            }
+          },
+          rejectedDailyLimitExceeded: {
+            summary: 'Rejected - DAILY_LIMIT_EXCEEDED',
+            value: {
+              success: false,
+              code: 'REJECTED',
+              message: 'Daily card limit exceeded',
+              data: {
+                requestId: 'station-abc-20260211-0005',
+                transactionId: 'a60e8fce-3a0e-4b4b-8d95-c6b8f17e481f',
+                reason: 'DAILY_LIMIT_EXCEEDED'
+              },
+              errors: null,
+              timestamp: '2026-02-12T10:02:00.000Z',
+              requestId: 'a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d'
+            }
+          },
+          rejectedMonthlyLimitExceeded: {
+            summary: 'Rejected - MONTHLY_LIMIT_EXCEEDED',
+            value: {
+              success: false,
+              code: 'REJECTED',
+              message: 'Monthly card limit exceeded',
+              data: {
+                requestId: 'station-abc-20260211-0006',
+                transactionId: '9fb26399-82dd-4b23-b4b4-e4d69d12894e',
+                reason: 'MONTHLY_LIMIT_EXCEEDED'
+              },
+              errors: null,
+              timestamp: '2026-02-12T10:03:00.000Z',
+              requestId: 'a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d'
+            }
+          },
+          rejectedDuplicateRequest: {
+            summary: 'Rejected - DUPLICATE_REQUEST',
+            value: {
+              success: false,
+              code: 'REJECTED',
+              message: 'Duplicate requestId',
+              data: {
+                requestId: 'station-abc-20260211-0001',
+                transactionId: null,
+                reason: 'DUPLICATE_REQUEST'
+              },
+              errors: null,
+              timestamp: '2026-02-12T10:04:00.000Z',
               requestId: 'a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d'
             }
           }
@@ -158,9 +233,7 @@ export class WebhookController {
         transactionId: result.transactionId ?? null,
         reason: result.reason ?? null
       },
-      errors: isRejected
-        ? [{ field: 'reason', message: result.reason ?? 'REJECTED' }]
-        : null,
+      errors: null,
       timestamp: new Date().toISOString(),
       requestId: request.requestId
     };

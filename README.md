@@ -212,12 +212,7 @@ Response (rejected):
     "transactionId": "uuid",
     "reason": "INSUFFICIENT_BALANCE"
   },
-  "errors": [
-    {
-      "field": "reason",
-      "message": "INSUFFICIENT_BALANCE"
-    }
-  ],
+  "errors": null,
   "timestamp": "2026-02-12T10:00:00.000Z",
   "requestId": "a2f0c1d8-0d85-4f88-b505-6f3c8e182e8d"
 }

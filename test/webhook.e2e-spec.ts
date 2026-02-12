@@ -291,11 +291,7 @@ describeE2E('WebhookController (e2e)', () => {
         expect(body.code).toBe('REJECTED');
         expect(body.data.reason).toBe('INSUFFICIENT_BALANCE');
         expect(body.data.transactionId).toBe('trx-rejected');
-        expect(Array.isArray(body.errors)).toBe(true);
-        expect(body.errors[0]).toEqual({
-          field: 'reason',
-          message: 'INSUFFICIENT_BALANCE'
-        });
+        expect(body.errors).toBeNull();
         expect(typeof body.timestamp).toBe('string');
         expect(typeof body.requestId).toBe('string');
       });
