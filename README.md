@@ -77,6 +77,18 @@ Data-services composition:
 - Rejected flow writes audit data to `WebhookRejectionLog`.
 - Safe concurrent update uses DB transaction and `FOR UPDATE` lock.
 
+## Trade-offs
+- Business rejection uses HTTP 200 with `code=REJECTED`.
+  This keeps webhook retry behavior simple, but it reduces HTTP semantic clarity.
+- Idempotency check uses `requestId` plus key fields (station, amount, transaction time).
+  This is lightweight and practical, but not as strict as full payload hashing.
+- Redis is a performance layer, not a source of truth.
+  If Redis is unavailable, service falls back to in-memory cache and PostgreSQL reads.
+- Event publishing is non-blocking for the main transaction path.
+  This protects transaction reliability, but event delivery is best-effort.
+- Test strategy is mock-first unit testing for fast feedback.
+  This improves development speed, but end-to-end runtime coverage is limited.
+
 ## API
 Base URL: `http://localhost:3000/api/v1`
 
