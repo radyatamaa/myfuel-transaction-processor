@@ -2,7 +2,6 @@ import {
   CreateWebhookRejectionLogInput,
   IWebhookRejectionLogRepository
 } from 'src/core/abstracts';
-import { RejectionReason as PrismaRejectionReason } from '@prisma/client';
 import { DbClient } from './db-client.type';
 
 export class PrismaWebhookRejectionLogRepository implements IWebhookRejectionLogRepository {
@@ -16,7 +15,7 @@ export class PrismaWebhookRejectionLogRepository implements IWebhookRejectionLog
         amount: input.amount,
         stationId: input.stationId,
         transactionAt: input.transactionAt,
-        reason: input.reason as PrismaRejectionReason,
+        reason: input.reason,
         message: input.message,
         rawPayload: input.rawPayload
       }

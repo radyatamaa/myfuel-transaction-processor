@@ -7,23 +7,7 @@ import {
   Transaction,
   TransactionStatus
 } from 'src/core/entities';
-import {
-  RejectionReason as PrismaRejectionReason,
-  TransactionStatus as PrismaTransactionStatus
-} from '@prisma/client';
 import { DbClient } from './db-client.type';
-
-function mapTransactionStatus(status: PrismaTransactionStatus): TransactionStatus {
-  return status as TransactionStatus;
-}
-
-function mapRejectionReason(reason: PrismaRejectionReason | null): RejectionReason | null {
-  if (!reason) {
-    return null;
-  }
-
-  return reason as RejectionReason;
-}
 
 export class PrismaTransactionRepository implements ITransactionRepository {
   constructor(private readonly db: DbClient) {}
@@ -42,8 +26,8 @@ export class PrismaTransactionRepository implements ITransactionRepository {
       stationId: row.stationId,
       amount: row.amount.toString(),
       trxAt: row.trxAt,
-      status: mapTransactionStatus(row.status),
-      rejectionReason: mapRejectionReason(row.rejectionReason),
+      status: row.status as TransactionStatus,
+      rejectionReason: row.rejectionReason as RejectionReason | null,
       createdAt: row.createdAt
     };
   }
@@ -57,7 +41,7 @@ export class PrismaTransactionRepository implements ITransactionRepository {
         stationId: input.stationId,
         amount: input.amount,
         trxAt: input.trxAt,
-        status: PrismaTransactionStatus.APPROVED
+        status: TransactionStatus.APPROVED
       }
     });
 
@@ -69,8 +53,8 @@ export class PrismaTransactionRepository implements ITransactionRepository {
       stationId: row.stationId,
       amount: row.amount.toString(),
       trxAt: row.trxAt,
-      status: mapTransactionStatus(row.status),
-      rejectionReason: mapRejectionReason(row.rejectionReason),
+      status: row.status as TransactionStatus,
+      rejectionReason: row.rejectionReason as RejectionReason | null,
       createdAt: row.createdAt
     };
   }
@@ -86,8 +70,8 @@ export class PrismaTransactionRepository implements ITransactionRepository {
         stationId: input.stationId,
         amount: input.amount,
         trxAt: input.trxAt,
-        status: PrismaTransactionStatus.REJECTED,
-        rejectionReason: input.rejectionReason as PrismaRejectionReason
+        status: TransactionStatus.REJECTED,
+        rejectionReason: input.rejectionReason
       }
     });
 
@@ -99,8 +83,8 @@ export class PrismaTransactionRepository implements ITransactionRepository {
       stationId: row.stationId,
       amount: row.amount.toString(),
       trxAt: row.trxAt,
-      status: mapTransactionStatus(row.status),
-      rejectionReason: mapRejectionReason(row.rejectionReason),
+      status: row.status as TransactionStatus,
+      rejectionReason: row.rejectionReason as RejectionReason | null,
       createdAt: row.createdAt
     };
   }

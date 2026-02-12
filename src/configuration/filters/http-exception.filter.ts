@@ -5,7 +5,7 @@ import {
   HttpException,
   HttpStatus
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 interface ErrorResponseBody {
   success: boolean;
@@ -82,10 +82,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       return;
     }
 
-    if (
-      exception instanceof Prisma.PrismaClientKnownRequestError &&
-      exception.code === 'P2002'
-    ) {
+    if (exception instanceof PrismaClientKnownRequestError && exception.code === 'P2002') {
       const body: ErrorResponseBody = {
         success: false,
         code: 'CONFLICT',
