@@ -3,300 +3,146 @@
 This document covers Part 1 deliverables:
 - Flow Diagram
 - ERD
-- High-Level System Architecture
-
-## Context and Scope
-
-### Problem
-
-Process fuel transaction webhooks with strict business validation:
-- organization prepaid balance must be sufficient
-- card daily and monthly limits must not be exceeded
-- result must be persisted with auditable history
-
-### In Scope
-
-- Synchronous webhook processing for one transaction request.
-- Business decision output: approved or rejected.
-- Persistence for transaction, balance movement, and rejection audit.
-- Concurrency-safe write path for high parallel traffic on same card/org.
-
-### Out of Scope
-
-- Card lifecycle management APIs.
-- Organization funding/top-up APIs.
-- Settlement/reconciliation with external providers.
-- Multi-region active-active deployment.
+- High-Level Architecture
 
 ## 1) Flow Diagram
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant S as Petrol Station
-    participant API as Webhook API (NestJS)
-    participant UC as Transaction Use Case
-    participant C as Redis Cache (optional)
-    participant DB as PostgreSQL
-    participant EV as Event Publisher/Handler
+flowchart TD
+  A[Petrol Station sends webhook] --> B[API validate payload + API key]
+  B --> C{Duplicate requestId?}
 
-    S->>API: POST /webhooks/transactions
-    API->>UC: process(requestId, cardNumber, amount, transactionAt, stationId)
+  C -- Yes --> C1[Reject DUPLICATE_REQUEST]
+  C1 --> C2[Save rejection log + publish rejected event]
+  C2 --> Z1[Return HTTP 200 code=REJECTED]
 
-    UC->>DB: find transaction by requestId
-    alt duplicate requestId
-        UC->>DB: insert webhook_rejection_log
-        UC->>EV: publish rejected event
-        UC-->>API: REJECTED (DUPLICATE_REQUEST)
-        API-->>S: 200 + code=REJECTED
-    else continue
-        UC->>C: get card by cardNumber
-        alt cache miss
-            UC->>DB: find card by cardNumber
-            UC->>C: set card (TTL)
-        end
+  C -- No --> D[Load card and organization (cache -> DB)]
+  D --> E{Card active and org exists?}
 
-        alt card not found/inactive
-            UC->>DB: insert webhook_rejection_log
-            UC->>EV: publish rejected event
-            UC-->>API: REJECTED (CARD_NOT_FOUND)
-            API-->>S: 200 + code=REJECTED
-        else continue
-            UC->>C: get organization by card.organizationId
-            alt cache miss
-                UC->>DB: find organization by id
-                UC->>C: set organization (TTL)
-            end
+  E -- No --> E1[Reject CARD_NOT_FOUND / ORGANIZATION_NOT_FOUND]
+  E1 --> E2[Save rejection log + publish rejected event]
+  E2 --> Z1
 
-            alt organization not found
-                UC->>DB: insert webhook_rejection_log
-                UC->>EV: publish rejected event
-                UC-->>API: REJECTED (ORGANIZATION_NOT_FOUND)
-                API-->>S: 200 + code=REJECTED
-            else continue
-                UC->>DB: BEGIN TRANSACTION
-                UC->>DB: lock card + organization (FOR UPDATE)
-                UC->>DB: get daily/monthly usage snapshot
+  E -- Yes --> F[Start DB transaction]
+  F --> G[Lock card + org FOR UPDATE]
+  G --> H[Read daily/monthly usage]
+  H --> I{Balance and limits valid?}
 
-                alt insufficient balance
-                    UC->>DB: insert transaction (REJECTED)
-                    UC->>DB: COMMIT
-                    UC->>DB: insert webhook_rejection_log
-                    UC->>EV: publish rejected event
-                    UC-->>API: REJECTED (INSUFFICIENT_BALANCE)
-                    API-->>S: 200 + code=REJECTED
-                else daily limit exceeded
-                    UC->>DB: insert transaction (REJECTED)
-                    UC->>DB: COMMIT
-                    UC->>DB: insert webhook_rejection_log
-                    UC->>EV: publish rejected event
-                    UC-->>API: REJECTED (DAILY_LIMIT_EXCEEDED)
-                    API-->>S: 200 + code=REJECTED
-                else monthly limit exceeded
-                    UC->>DB: insert transaction (REJECTED)
-                    UC->>DB: COMMIT
-                    UC->>DB: insert webhook_rejection_log
-                    UC->>EV: publish rejected event
-                    UC-->>API: REJECTED (MONTHLY_LIMIT_EXCEEDED)
-                    API-->>S: 200 + code=REJECTED
-                else approved
-                    UC->>DB: insert transaction (APPROVED)
-                    UC->>DB: update organization balance
-                    UC->>DB: upsert card_daily_usage and card_monthly_usage
-                    UC->>DB: insert balance_ledger (DEBIT)
-                    UC->>DB: COMMIT
-                    UC->>EV: publish approved event
-                    UC-->>API: SUCCESS (APPROVED)
-                    API-->>S: 200 + code=SUCCESS
-                end
-            end
-        end
-    end
+  I -- No --> I1[Save rejected transaction]
+  I1 --> I2[Commit]
+  I2 --> I3[Save rejection log + publish rejected event]
+  I3 --> Z1
+
+  I -- Yes --> J[Save approved transaction]
+  J --> K[Deduct organization balance]
+  K --> L[Update daily/monthly usage]
+  L --> M[Insert balance ledger DEBIT]
+  M --> N[Commit]
+  N --> O[Publish approved event]
+  O --> Z2[Return HTTP 200 code=SUCCESS]
 ```
 
 ## 2) ERD
 
 ```mermaid
 erDiagram
-    ORGANIZATION ||--o{ CARD : has
-    ORGANIZATION ||--o{ TRANSACTION : owns
-    ORGANIZATION ||--o{ BALANCE_LEDGER : tracks
-    CARD ||--o{ TRANSACTION : used_for
-    CARD ||--o{ CARD_DAILY_USAGE : accumulates
-    CARD ||--o{ CARD_MONTHLY_USAGE : accumulates
+  ORGANIZATION ||--o{ CARD : has
+  ORGANIZATION ||--o{ TRANSACTION : owns
+  ORGANIZATION ||--o{ BALANCE_LEDGER : has
+  CARD ||--o{ TRANSACTION : used_for
+  CARD ||--o{ CARD_DAILY_USAGE : has
+  CARD ||--o{ CARD_MONTHLY_USAGE : has
 
-    ORGANIZATION {
-      uuid id PK
-      string name
-      decimal currentBalance
-      datetime createdAt
-      datetime updatedAt
-    }
+  ORGANIZATION {
+    uuid id PK
+    string name
+    decimal currentBalance
+    datetime createdAt
+    datetime updatedAt
+  }
 
-    CARD {
-      uuid id PK
-      uuid organizationId FK
-      string cardNumber UK
-      decimal dailyLimit
-      decimal monthlyLimit
-      boolean isActive
-      datetime createdAt
-      datetime updatedAt
-    }
+  CARD {
+    uuid id PK
+    uuid organizationId FK
+    string cardNumber UK
+    decimal dailyLimit
+    decimal monthlyLimit
+    boolean isActive
+    datetime createdAt
+    datetime updatedAt
+  }
 
-    CARD_DAILY_USAGE {
-      uuid id PK
-      uuid cardId FK
-      date usageDate
-      decimal usedAmount
-      datetime updatedAt
-      string unique_cardId_usageDate UK
-    }
+  CARD_DAILY_USAGE {
+    uuid id PK
+    uuid cardId FK
+    date usageDate
+    decimal usedAmount
+    datetime updatedAt
+  }
 
-    CARD_MONTHLY_USAGE {
-      uuid id PK
-      uuid cardId FK
-      string usageMonth
-      decimal usedAmount
-      datetime updatedAt
-      string unique_cardId_usageMonth UK
-    }
+  CARD_MONTHLY_USAGE {
+    uuid id PK
+    uuid cardId FK
+    string usageMonth
+    decimal usedAmount
+    datetime updatedAt
+  }
 
-    TRANSACTION {
-      uuid id PK
-      string requestId UK
-      uuid organizationId FK
-      uuid cardId FK
-      string stationId
-      decimal amount
-      datetime trxAt
-      enum status
-      enum rejectionReason
-      datetime createdAt
-    }
+  TRANSACTION {
+    uuid id PK
+    string requestId UK
+    uuid organizationId FK
+    uuid cardId FK
+    string stationId
+    decimal amount
+    datetime trxAt
+    enum status
+    enum rejectionReason nullable
+    datetime createdAt
+  }
 
-    BALANCE_LEDGER {
-      uuid id PK
-      uuid organizationId FK
-      enum type
-      decimal amount
-      decimal beforeBalance
-      decimal afterBalance
-      string referenceType
-      string referenceId
-      datetime createdAt
-    }
+  BALANCE_LEDGER {
+    uuid id PK
+    uuid organizationId FK
+    enum type
+    decimal amount
+    decimal beforeBalance
+    decimal afterBalance
+    string referenceType
+    string referenceId
+    datetime createdAt
+  }
 
-    WEBHOOK_REJECTION_LOG {
-      uuid id PK
-      string requestId
-      string cardNumber
-      decimal amount
-      string stationId
-      datetime transactionAt
-      enum reason
-      string message
-      json rawPayload
-      datetime createdAt
-    }
+  WEBHOOK_REJECTION_LOG {
+    uuid id PK
+    string requestId
+    string cardNumber nullable
+    decimal amount nullable
+    string stationId nullable
+    datetime transactionAt nullable
+    enum reason
+    string message
+    json rawPayload nullable
+    datetime createdAt
+  }
 ```
 
 ## 3) High-Level Architecture
 
 ```mermaid
 flowchart LR
-    PS[Petrol Station System]
-    API[NestJS API Layer<br/>Controller + Validation + Auth Guard]
-    UC[Use Case Layer<br/>TransactionUseCases]
-    CACHE[Cache Layer<br/>Redis optional / In-memory fallback]
-    DS[Data Service Layer<br/>Prisma Repositories]
-    DB[(PostgreSQL)]
-    EV[Event Layer<br/>Publisher + Handler]
-
-    PS -->|Webhook POST| API
-    API --> UC
-    UC <--> CACHE
-    UC --> DS
-    DS --> DB
-    UC --> EV
+  ST[Petrol Station] --> API[NestJS API]
+  API --> UC[TransactionUseCases]
+  UC --> CORE[Core: entities + abstractions]
+  UC --> INFRA[Prisma + Cache + Events]
+  INFRA --> CORE
+  INFRA --> DB[(PostgreSQL)]
+  INFRA --> REDIS[(Redis Optional)]
 ```
 
-## Architectural Decisions
-
-### Decision 1: Return HTTP 200 for business rejection
-
-- Reason: request is syntactically valid and processed successfully.
-- Outcome: sender does not retry endlessly due to 4xx for business outcomes.
-- Contract: result is differentiated by `code` (`SUCCESS` or `REJECTED`) and `data.reason`.
-
-### Decision 2: DB transaction + row locks for write consistency
-
-- Reason: prevent race conditions when concurrent webhooks hit same card/org.
-- Mechanism: lock card and organization rows (`FOR UPDATE`) before final validation/write.
-- Outcome: balance and usage counters remain consistent.
-
-### Decision 3: Database-backed idempotency
-
-- Reason: duplicate webhook delivery is expected.
-- Mechanism: unique constraint on `Transaction.requestId` + duplicate handling fallback.
-- Outcome: only one effective transaction per request id.
-
-### Decision 4: Cache is optional optimization
-
-- Reason: reduce read load on hot card/org lookups without making Redis mandatory.
-- Mechanism: Redis if available, in-memory fallback otherwise.
-- Outcome: performance gain with safe fallback behavior.
-
-## Scalability and Extensibility Notes
-
-- Concurrency-safe write path:
-  - transaction boundary in database.
-  - row locks (`FOR UPDATE`) on card and organization before final validation and write.
-- Idempotency:
-  - unique `requestId` on `Transaction`.
-  - duplicate handling in application + DB unique constraint fallback.
-- Historical tracking:
-  - `Transaction` stores all approved/rejected outcomes.
-  - `BalanceLedger` stores balance movement history.
-  - `WebhookRejectionLog` stores rejected payload context for audit/debug.
-- Usage reset logic:
-  - daily and monthly usage are naturally partitioned by `usageDate` and `usageMonth`.
-- Future rule extensions:
-  - Add `CardWeeklyUsage` for weekly limits.
-  - Add `Vehicle` and relation to `Card` for vehicle-based limit.
-  - Add organization aggregate limit table and validator strategy.
-- Performance:
-  - optional Redis cache for card/organization read path.
-  - indexes on frequently filtered columns (`requestId`, `cardId`, `organizationId`, `status`, `trxAt`).
-
-## Reliability and Operations
-
-### Failure Handling
-
-- Validation/auth errors return 4xx.
-- Unexpected server errors return 5xx.
-- Event publishing and rejection audit logging are best-effort and must not break transaction response.
-
-### Observability
-
-- Request correlation id (`x-request-id`) propagated in response body/header.
-- Request logging includes method, path, status, and duration.
-- Business result is visible via response `code` and stored transaction status.
-
-### Security
-
-- Webhook endpoint protected by API key guard (`x-api-key`).
-- Production startup enforces non-empty `WEBHOOK_API_KEY`.
-
-### Suggested SLO (for production target)
-
-- Availability: 99.9% monthly for webhook endpoint.
-- P95 latency: < 200 ms (excluding DB/network incidents).
-- Duplicate suppression correctness: 100% by unique `requestId`.
-
-## Assumptions
-
-- One webhook request represents one fuel purchase.
-- API returns HTTP 200 for business reject (`code=REJECTED`) to avoid sender retry storms.
-- Validation or authentication failures return proper 4xx.
-- Decimal money precision uses database decimal and use-case minor-unit conversion for comparisons.
+## Design Notes
+- Business reject returns HTTP 200 with `code=REJECTED`.
+- Idempotency uses unique `requestId`.
+- Concurrency safety uses DB transaction + row lock.
+- History is saved in `Transaction`, `BalanceLedger`, and `WebhookRejectionLog`.
+- Easy to extend for weekly limit, vehicle limit, and org aggregate limit.
