@@ -12,30 +12,32 @@ import { TransactionFactoryService } from '../src/use-cases/transaction/transact
 import { TransactionUseCases } from '../src/use-cases/transaction/transaction.use-case';
 
 type MockDataServices = {
-  cards: {
-    findById: jest.Mock;
-    findByCardNumber: jest.Mock;
-    getUsageSnapshot: jest.Mock;
-    addUsage: jest.Mock;
-    lockById: jest.Mock;
+  prisma: {
+    cards: {
+      findById: jest.Mock;
+      findByCardNumber: jest.Mock;
+      getUsageSnapshot: jest.Mock;
+      addUsage: jest.Mock;
+      lockById: jest.Mock;
+    };
+    organizations: {
+      findById: jest.Mock;
+      updateBalance: jest.Mock;
+      lockById: jest.Mock;
+    };
+    transactions: {
+      findByRequestId: jest.Mock;
+      createApproved: jest.Mock;
+      createRejected: jest.Mock;
+    };
+    ledgers: {
+      create: jest.Mock;
+    };
+    rejectionLogs: {
+      create: jest.Mock;
+    };
   };
-  organizations: {
-    findById: jest.Mock;
-    updateBalance: jest.Mock;
-    lockById: jest.Mock;
-  };
-  transactions: {
-    findByRequestId: jest.Mock;
-    createApproved: jest.Mock;
-    createRejected: jest.Mock;
-  };
-  ledgers: {
-    create: jest.Mock;
-  };
-  rejectionLogs: {
-    create: jest.Mock;
-  };
-  redisCache: {
+  redis: {
     get: jest.Mock;
     set: jest.Mock;
     del: jest.Mock;
@@ -45,30 +47,32 @@ type MockDataServices = {
 
 function createMockDataServices(): MockDataServices {
   const dataServices: MockDataServices = {
-    cards: {
-      findById: jest.fn(),
-      findByCardNumber: jest.fn(),
-      getUsageSnapshot: jest.fn(),
-      addUsage: jest.fn(),
-      lockById: jest.fn()
+    prisma: {
+      cards: {
+        findById: jest.fn(),
+        findByCardNumber: jest.fn(),
+        getUsageSnapshot: jest.fn(),
+        addUsage: jest.fn(),
+        lockById: jest.fn()
+      },
+      organizations: {
+        findById: jest.fn(),
+        updateBalance: jest.fn(),
+        lockById: jest.fn()
+      },
+      transactions: {
+        findByRequestId: jest.fn(),
+        createApproved: jest.fn(),
+        createRejected: jest.fn()
+      },
+      ledgers: {
+        create: jest.fn()
+      },
+      rejectionLogs: {
+        create: jest.fn()
+      }
     },
-    organizations: {
-      findById: jest.fn(),
-      updateBalance: jest.fn(),
-      lockById: jest.fn()
-    },
-    transactions: {
-      findByRequestId: jest.fn(),
-      createApproved: jest.fn(),
-      createRejected: jest.fn()
-    },
-    ledgers: {
-      create: jest.fn()
-    },
-    rejectionLogs: {
-      create: jest.fn()
-    },
-    redisCache: {
+    redis: {
       get: jest.fn(),
       set: jest.fn(),
       del: jest.fn()
@@ -183,8 +187,8 @@ describeE2E('WebhookController (e2e)', () => {
   });
 
   it('POST /api/v1/webhooks/transactions returns approved response', async () => {
-    dataServices.transactions.findByRequestId.mockResolvedValue(null);
-    dataServices.cards.findByCardNumber.mockResolvedValue({
+    dataServices.prisma.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.prisma.cards.findByCardNumber.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: '6037991234561001',
@@ -194,7 +198,7 @@ describeE2E('WebhookController (e2e)', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.findById.mockResolvedValue({
+    dataServices.prisma.cards.findById.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: '6037991234561001',
@@ -204,18 +208,18 @@ describeE2E('WebhookController (e2e)', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.organizations.findById.mockResolvedValue({
+    dataServices.prisma.organizations.findById.mockResolvedValue({
       id: 'org-1',
       name: 'Org',
       currentBalance: '5000.00',
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.getUsageSnapshot.mockResolvedValue({
+    dataServices.prisma.cards.getUsageSnapshot.mockResolvedValue({
       dailyUsedAmount: '100.00',
       monthlyUsedAmount: '500.00'
     });
-    dataServices.transactions.createApproved.mockResolvedValue({
+    dataServices.prisma.transactions.createApproved.mockResolvedValue({
       id: 'trx-approved',
       requestId: 'req-approve',
       organizationId: 'org-1',
@@ -250,8 +254,8 @@ describeE2E('WebhookController (e2e)', () => {
   });
 
   it('POST /api/v1/webhooks/transactions returns rejected on insufficient balance', async () => {
-    dataServices.transactions.findByRequestId.mockResolvedValue(null);
-    dataServices.cards.findByCardNumber.mockResolvedValue({
+    dataServices.prisma.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.prisma.cards.findByCardNumber.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: '6037991234561001',
@@ -261,7 +265,7 @@ describeE2E('WebhookController (e2e)', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.findById.mockResolvedValue({
+    dataServices.prisma.cards.findById.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: '6037991234561001',
@@ -271,18 +275,18 @@ describeE2E('WebhookController (e2e)', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.organizations.findById.mockResolvedValue({
+    dataServices.prisma.organizations.findById.mockResolvedValue({
       id: 'org-1',
       name: 'Org',
       currentBalance: '50.00',
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.getUsageSnapshot.mockResolvedValue({
+    dataServices.prisma.cards.getUsageSnapshot.mockResolvedValue({
       dailyUsedAmount: '0',
       monthlyUsedAmount: '0'
     });
-    dataServices.transactions.createRejected.mockResolvedValue({
+    dataServices.prisma.transactions.createRejected.mockResolvedValue({
       id: 'trx-rejected',
       requestId: 'req-reject',
       organizationId: 'org-1',

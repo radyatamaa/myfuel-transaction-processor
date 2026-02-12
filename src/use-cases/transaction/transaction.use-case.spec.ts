@@ -4,30 +4,32 @@ import { TransactionUseCases } from './transaction.use-case';
 import { TransactionFactoryService } from './transaction-factory.service';
 
 type MockDataServices = {
-  cards: {
-    findById: jest.Mock;
-    findByCardNumber: jest.Mock;
-    getUsageSnapshot: jest.Mock;
-    addUsage: jest.Mock;
-    lockById: jest.Mock;
+  prisma: {
+    cards: {
+      findById: jest.Mock;
+      findByCardNumber: jest.Mock;
+      getUsageSnapshot: jest.Mock;
+      addUsage: jest.Mock;
+      lockById: jest.Mock;
+    };
+    organizations: {
+      findById: jest.Mock;
+      updateBalance: jest.Mock;
+      lockById: jest.Mock;
+    };
+    transactions: {
+      findByRequestId: jest.Mock;
+      createApproved: jest.Mock;
+      createRejected: jest.Mock;
+    };
+    ledgers: {
+      create: jest.Mock;
+    };
+    rejectionLogs: {
+      create: jest.Mock;
+    };
   };
-  organizations: {
-    findById: jest.Mock;
-    updateBalance: jest.Mock;
-    lockById: jest.Mock;
-  };
-  transactions: {
-    findByRequestId: jest.Mock;
-    createApproved: jest.Mock;
-    createRejected: jest.Mock;
-  };
-  ledgers: {
-    create: jest.Mock;
-  };
-  rejectionLogs: {
-    create: jest.Mock;
-  };
-  redisCache: {
+  redis: {
     get: jest.Mock;
     set: jest.Mock;
     del: jest.Mock;
@@ -46,30 +48,32 @@ describe('TransactionUseCases', () => {
 
   function createMockDataServices(): MockDataServices {
     const dataServices: MockDataServices = {
-      cards: {
-        findById: jest.fn(),
-        findByCardNumber: jest.fn(),
-        getUsageSnapshot: jest.fn(),
-        addUsage: jest.fn(),
-        lockById: jest.fn()
+      prisma: {
+        cards: {
+          findById: jest.fn(),
+          findByCardNumber: jest.fn(),
+          getUsageSnapshot: jest.fn(),
+          addUsage: jest.fn(),
+          lockById: jest.fn()
+        },
+        organizations: {
+          findById: jest.fn(),
+          updateBalance: jest.fn(),
+          lockById: jest.fn()
+        },
+        transactions: {
+          findByRequestId: jest.fn(),
+          createApproved: jest.fn(),
+          createRejected: jest.fn()
+        },
+        ledgers: {
+          create: jest.fn()
+        },
+        rejectionLogs: {
+          create: jest.fn()
+        }
       },
-      organizations: {
-        findById: jest.fn(),
-        updateBalance: jest.fn(),
-        lockById: jest.fn()
-      },
-      transactions: {
-        findByRequestId: jest.fn(),
-        createApproved: jest.fn(),
-        createRejected: jest.fn()
-      },
-      ledgers: {
-        create: jest.fn()
-      },
-      rejectionLogs: {
-        create: jest.fn()
-      },
-      redisCache: {
+      redis: {
         get: jest.fn(),
         set: jest.fn(),
         del: jest.fn()
@@ -88,7 +92,7 @@ describe('TransactionUseCases', () => {
 
   it('returns rejected when requestId is duplicate', async () => {
     const dataServices = createMockDataServices();
-    dataServices.transactions.findByRequestId.mockResolvedValue({
+    dataServices.prisma.transactions.findByRequestId.mockResolvedValue({
       id: 'trx-dup',
       requestId: payload.requestId,
       organizationId: 'org-1',
@@ -106,14 +110,14 @@ describe('TransactionUseCases', () => {
 
     expect(result.status).toBe(WebhookResponseStatus.REJECTED);
     expect(result.reason).toBe(RejectionReason.DUPLICATE_REQUEST);
-    expect(dataServices.cards.findByCardNumber).not.toHaveBeenCalled();
-    expect(dataServices.rejectionLogs.create).toHaveBeenCalledTimes(1);
+    expect(dataServices.prisma.cards.findByCardNumber).not.toHaveBeenCalled();
+    expect(dataServices.prisma.rejectionLogs.create).toHaveBeenCalledTimes(1);
   });
 
   it('returns rejected when organization is not found', async () => {
     const dataServices = createMockDataServices();
-    dataServices.transactions.findByRequestId.mockResolvedValue(null);
-    dataServices.cards.findByCardNumber.mockResolvedValue({
+    dataServices.prisma.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.prisma.cards.findByCardNumber.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -123,21 +127,21 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.organizations.findById.mockResolvedValue(null);
+    dataServices.prisma.organizations.findById.mockResolvedValue(null);
 
     const useCase = new TransactionUseCases(dataServices as unknown as IDataServices, new TransactionFactoryService());
     const result = await useCase.process(payload);
 
     expect(result.status).toBe(WebhookResponseStatus.REJECTED);
     expect(result.reason).toBe(RejectionReason.ORGANIZATION_NOT_FOUND);
-    expect(dataServices.rejectionLogs.create).toHaveBeenCalledTimes(1);
+    expect(dataServices.prisma.rejectionLogs.create).toHaveBeenCalledTimes(1);
     expect(dataServices.runInTransaction).not.toHaveBeenCalled();
   });
 
   it('persists rejected transaction when balance is insufficient', async () => {
     const dataServices = createMockDataServices();
-    dataServices.transactions.findByRequestId.mockResolvedValue(null);
-    dataServices.cards.findByCardNumber.mockResolvedValue({
+    dataServices.prisma.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.prisma.cards.findByCardNumber.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -147,7 +151,7 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.findById.mockResolvedValue({
+    dataServices.prisma.cards.findById.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -157,18 +161,18 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.organizations.findById.mockResolvedValue({
+    dataServices.prisma.organizations.findById.mockResolvedValue({
       id: 'org-1',
       name: 'Org',
       currentBalance: '50.00',
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.getUsageSnapshot.mockResolvedValue({
+    dataServices.prisma.cards.getUsageSnapshot.mockResolvedValue({
       dailyUsedAmount: '0',
       monthlyUsedAmount: '0'
     });
-    dataServices.transactions.createRejected.mockResolvedValue({
+    dataServices.prisma.transactions.createRejected.mockResolvedValue({
       id: 'trx-rejected',
       requestId: payload.requestId,
       organizationId: 'org-1',
@@ -187,14 +191,14 @@ describe('TransactionUseCases', () => {
     expect(result.status).toBe(WebhookResponseStatus.REJECTED);
     expect(result.reason).toBe(RejectionReason.INSUFFICIENT_BALANCE);
     expect(result.transactionId).toBe('trx-rejected');
-    expect(dataServices.transactions.createRejected).toHaveBeenCalledTimes(1);
-    expect(dataServices.rejectionLogs.create).toHaveBeenCalledTimes(1);
+    expect(dataServices.prisma.transactions.createRejected).toHaveBeenCalledTimes(1);
+    expect(dataServices.prisma.rejectionLogs.create).toHaveBeenCalledTimes(1);
   });
 
   it('returns approved and persists updates when validation passes', async () => {
     const dataServices = createMockDataServices();
-    dataServices.transactions.findByRequestId.mockResolvedValue(null);
-    dataServices.cards.findByCardNumber.mockResolvedValue({
+    dataServices.prisma.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.prisma.cards.findByCardNumber.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -204,7 +208,7 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.findById.mockResolvedValue({
+    dataServices.prisma.cards.findById.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -214,18 +218,18 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.organizations.findById.mockResolvedValue({
+    dataServices.prisma.organizations.findById.mockResolvedValue({
       id: 'org-1',
       name: 'Org',
       currentBalance: '500.00',
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.getUsageSnapshot.mockResolvedValue({
+    dataServices.prisma.cards.getUsageSnapshot.mockResolvedValue({
       dailyUsedAmount: '100.00',
       monthlyUsedAmount: '200.00'
     });
-    dataServices.transactions.createApproved.mockResolvedValue({
+    dataServices.prisma.transactions.createApproved.mockResolvedValue({
       id: 'trx-approved',
       requestId: payload.requestId,
       organizationId: 'org-1',
@@ -243,11 +247,11 @@ describe('TransactionUseCases', () => {
 
     expect(result.status).toBe(WebhookResponseStatus.APPROVED);
     expect(result.transactionId).toBe('trx-approved');
-    expect(dataServices.transactions.createApproved).toHaveBeenCalledTimes(1);
-    expect(dataServices.organizations.updateBalance).toHaveBeenCalledTimes(1);
-    expect(dataServices.cards.addUsage).toHaveBeenCalledTimes(1);
-    expect(dataServices.ledgers.create).toHaveBeenCalledTimes(1);
-    expect(dataServices.rejectionLogs.create).not.toHaveBeenCalled();
+    expect(dataServices.prisma.transactions.createApproved).toHaveBeenCalledTimes(1);
+    expect(dataServices.prisma.organizations.updateBalance).toHaveBeenCalledTimes(1);
+    expect(dataServices.prisma.cards.addUsage).toHaveBeenCalledTimes(1);
+    expect(dataServices.prisma.ledgers.create).toHaveBeenCalledTimes(1);
+    expect(dataServices.prisma.rejectionLogs.create).not.toHaveBeenCalled();
   });
 
   it('publishes approved event when transaction is approved', async () => {
@@ -257,8 +261,8 @@ describe('TransactionUseCases', () => {
       publishRejected: jest.fn()
     };
 
-    dataServices.transactions.findByRequestId.mockResolvedValue(null);
-    dataServices.cards.findByCardNumber.mockResolvedValue({
+    dataServices.prisma.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.prisma.cards.findByCardNumber.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -268,7 +272,7 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.findById.mockResolvedValue({
+    dataServices.prisma.cards.findById.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -278,18 +282,18 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.organizations.findById.mockResolvedValue({
+    dataServices.prisma.organizations.findById.mockResolvedValue({
       id: 'org-1',
       name: 'Org',
       currentBalance: '500.00',
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.getUsageSnapshot.mockResolvedValue({
+    dataServices.prisma.cards.getUsageSnapshot.mockResolvedValue({
       dailyUsedAmount: '0',
       monthlyUsedAmount: '0'
     });
-    dataServices.transactions.createApproved.mockResolvedValue({
+    dataServices.prisma.transactions.createApproved.mockResolvedValue({
       id: 'trx-approved',
       requestId: payload.requestId,
       organizationId: 'org-1',
@@ -315,8 +319,8 @@ describe('TransactionUseCases', () => {
 
   it('returns rejected when card becomes inactive after lock', async () => {
     const dataServices = createMockDataServices();
-    dataServices.transactions.findByRequestId.mockResolvedValue(null);
-    dataServices.cards.findByCardNumber.mockResolvedValue({
+    dataServices.prisma.transactions.findByRequestId.mockResolvedValue(null);
+    dataServices.prisma.cards.findByCardNumber.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -326,14 +330,14 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.organizations.findById.mockResolvedValue({
+    dataServices.prisma.organizations.findById.mockResolvedValue({
       id: 'org-1',
       name: 'Org',
       currentBalance: '500.00',
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.cards.findById.mockResolvedValue({
+    dataServices.prisma.cards.findById.mockResolvedValue({
       id: 'card-1',
       organizationId: 'org-1',
       cardNumber: payload.cardNumber,
@@ -343,7 +347,7 @@ describe('TransactionUseCases', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    dataServices.transactions.createRejected.mockResolvedValue({
+    dataServices.prisma.transactions.createRejected.mockResolvedValue({
       id: 'trx-rejected',
       requestId: payload.requestId,
       organizationId: 'org-1',
@@ -362,6 +366,6 @@ describe('TransactionUseCases', () => {
     expect(result.status).toBe(WebhookResponseStatus.REJECTED);
     expect(result.reason).toBe(RejectionReason.CARD_NOT_FOUND);
     expect(result.transactionId).toBe('trx-rejected');
-    expect(dataServices.cards.getUsageSnapshot).not.toHaveBeenCalled();
+    expect(dataServices.prisma.cards.getUsageSnapshot).not.toHaveBeenCalled();
   });
 });

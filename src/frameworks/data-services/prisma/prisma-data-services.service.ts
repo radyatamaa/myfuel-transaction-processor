@@ -1,13 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  IBalanceLedgerRepository,
-  ICardRepository,
-  ICacheService,
-  IDataServices,
-  IOrganizationRepository,
-  ITransactionRepository,
-  IWebhookRejectionLogRepository
-} from 'src/core/abstracts';
+import { IDataServicesPrisma } from 'src/core/abstracts';
 import {
   DbClient,
   PrismaBalanceLedgerRepository,
@@ -16,49 +8,27 @@ import {
   PrismaTransactionRepository,
   PrismaWebhookRejectionLogRepository
 } from './repositories';
-import { RedisCacheService } from 'src/frameworks/data-services/redis/redis-cache.service';
 import { PrismaService } from './prisma.service';
 
-function createDataServices(db: DbClient, redisCache: ICacheService): IDataServices {
+function createPrismaRepositories(db: DbClient): IDataServicesPrisma {
   return {
     cards: new PrismaCardRepository(db),
     organizations: new PrismaOrganizationRepository(db),
     transactions: new PrismaTransactionRepository(db),
     ledgers: new PrismaBalanceLedgerRepository(db),
-    rejectionLogs: new PrismaWebhookRejectionLogRepository(db),
-    redisCache,
-    runInTransaction: async <T>(callback: (tx: IDataServices) => Promise<T>): Promise<T> => {
-      void callback;
-      throw new Error('Nested transaction is not supported');
-    }
+    rejectionLogs: new PrismaWebhookRejectionLogRepository(db)
   };
 }
 
 @Injectable()
-export class PrismaDataServicesService implements IDataServices {
-  readonly cards: ICardRepository;
-  readonly organizations: IOrganizationRepository;
-  readonly transactions: ITransactionRepository;
-  readonly ledgers: IBalanceLedgerRepository;
-  readonly rejectionLogs: IWebhookRejectionLogRepository;
-  readonly redisCache: ICacheService;
+export class PrismaDataServicesService {
+  readonly prisma: IDataServicesPrisma;
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly redisCacheService: RedisCacheService
-  ) {
-    this.cards = new PrismaCardRepository(prisma);
-    this.organizations = new PrismaOrganizationRepository(prisma);
-    this.transactions = new PrismaTransactionRepository(prisma);
-    this.ledgers = new PrismaBalanceLedgerRepository(prisma);
-    this.rejectionLogs = new PrismaWebhookRejectionLogRepository(prisma);
-    this.redisCache = redisCacheService;
+  constructor(private readonly prismaClient: PrismaService) {
+    this.prisma = createPrismaRepositories(prismaClient);
   }
 
-  async runInTransaction<T>(callback: (tx: IDataServices) => Promise<T>): Promise<T> {
-    return this.prisma.$transaction(async (tx) => {
-      const txServices = createDataServices(tx, this.redisCache);
-      return callback(txServices);
-    });
+  async runInTransaction<T>(callback: (tx: IDataServicesPrisma) => Promise<T>): Promise<T> {
+    return this.prismaClient.$transaction(async (tx) => callback(createPrismaRepositories(tx)));
   }
 }

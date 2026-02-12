@@ -7,13 +7,17 @@ import {
 } from './repositories.abstract';
 import { ICacheService } from './cache.abstract';
 
+export interface IDataServicesPrisma {
+  cards: ICardRepository;
+  organizations: IOrganizationRepository;
+  transactions: ITransactionRepository;
+  ledgers: IBalanceLedgerRepository;
+  rejectionLogs: IWebhookRejectionLogRepository;
+}
+
 export abstract class IDataServices {
-  abstract readonly cards: ICardRepository;
-  abstract readonly organizations: IOrganizationRepository;
-  abstract readonly transactions: ITransactionRepository;
-  abstract readonly ledgers: IBalanceLedgerRepository;
-  abstract readonly rejectionLogs: IWebhookRejectionLogRepository;
-  abstract readonly redisCache: ICacheService;
+  abstract readonly prisma: IDataServicesPrisma;
+  abstract readonly redis: ICacheService;
 
   abstract runInTransaction<T>(callback: (tx: IDataServices) => Promise<T>): Promise<T>;
 }

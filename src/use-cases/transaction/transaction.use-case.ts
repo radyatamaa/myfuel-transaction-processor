@@ -19,7 +19,7 @@ export class TransactionUseCases {
   ) {}
 
   async process(payload: ProcessTransactionDto): Promise<WebhookResponseDto> {
-    const existingTransaction = await this.dataServices.transactions.findByRequestId(payload.requestId);
+    const existingTransaction = await this.dataServices.prisma.transactions.findByRequestId(payload.requestId);
     if (existingTransaction) {
       const result = this.factory.buildRejected(
         payload.requestId,
@@ -61,12 +61,12 @@ export class TransactionUseCases {
 
     try {
       const result = await this.dataServices.runInTransaction(async (tx) => {
-        await tx.cards.lockById(card.id);
-        await tx.organizations.lockById(organization.id);
+        await tx.prisma.cards.lockById(card.id);
+        await tx.prisma.organizations.lockById(organization.id);
 
-        const lockedCard = await tx.cards.findById(card.id);
+        const lockedCard = await tx.prisma.cards.findById(card.id);
         if (!lockedCard || !lockedCard.isActive) {
-          const rejectedTransaction = await tx.transactions.createRejected({
+          const rejectedTransaction = await tx.prisma.transactions.createRejected({
             requestId: payload.requestId,
             organizationId: organization.id,
             cardId: card.id,
@@ -84,7 +84,7 @@ export class TransactionUseCases {
           );
         }
 
-        const lockedOrganization = await tx.organizations.findById(organization.id);
+        const lockedOrganization = await tx.prisma.organizations.findById(organization.id);
         if (!lockedOrganization) {
           return this.factory.buildRejected(
             payload.requestId,
@@ -93,7 +93,7 @@ export class TransactionUseCases {
           );
         }
 
-        const usage = await tx.cards.getUsageSnapshot(card.id, trxAt);
+        const usage = await tx.prisma.cards.getUsageSnapshot(card.id, trxAt);
         const balanceMinor = this.factory.toMinorUnits(lockedOrganization.currentBalance);
         const dailyLimitMinor = this.factory.toMinorUnits(lockedCard.dailyLimit);
         const monthlyLimitMinor = this.factory.toMinorUnits(lockedCard.monthlyLimit);
@@ -101,7 +101,7 @@ export class TransactionUseCases {
         const monthlyUsedMinor = this.factory.toMinorUnits(usage.monthlyUsedAmount);
 
         if (balanceMinor < amountMinor) {
-          const rejectedTransaction = await tx.transactions.createRejected({
+          const rejectedTransaction = await tx.prisma.transactions.createRejected({
             requestId: payload.requestId,
             organizationId: organization.id,
             cardId: card.id,
@@ -120,7 +120,7 @@ export class TransactionUseCases {
         }
 
         if (dailyUsedMinor + amountMinor > dailyLimitMinor) {
-          const rejectedTransaction = await tx.transactions.createRejected({
+          const rejectedTransaction = await tx.prisma.transactions.createRejected({
             requestId: payload.requestId,
             organizationId: organization.id,
             cardId: card.id,
@@ -139,7 +139,7 @@ export class TransactionUseCases {
         }
 
         if (monthlyUsedMinor + amountMinor > monthlyLimitMinor) {
-          const rejectedTransaction = await tx.transactions.createRejected({
+          const rejectedTransaction = await tx.prisma.transactions.createRejected({
             requestId: payload.requestId,
             organizationId: organization.id,
             cardId: card.id,
@@ -160,7 +160,7 @@ export class TransactionUseCases {
         const newBalanceMinor = balanceMinor - amountMinor;
         const newBalance = this.factory.fromMinorUnits(newBalanceMinor);
 
-        const transaction = await tx.transactions.createApproved({
+        const transaction = await tx.prisma.transactions.createApproved({
           requestId: payload.requestId,
           organizationId: organization.id,
           cardId: card.id,
@@ -169,9 +169,9 @@ export class TransactionUseCases {
           trxAt
         });
 
-        await tx.organizations.updateBalance(organization.id, newBalance);
-        await tx.cards.addUsage(card.id, trxAt, amount);
-        await tx.ledgers.create({
+        await tx.prisma.organizations.updateBalance(organization.id, newBalance);
+        await tx.prisma.cards.addUsage(card.id, trxAt, amount);
+        await tx.prisma.ledgers.create({
           organizationId: organization.id,
           type: BalanceLedgerType.DEBIT,
           amount,
@@ -225,7 +225,7 @@ export class TransactionUseCases {
     const amount = this.factory.fromMinorUnits(this.factory.toMinorUnits(payload.amount));
 
     try {
-      await this.dataServices.rejectionLogs.create({
+      await this.dataServices.prisma.rejectionLogs.create({
         requestId: payload.requestId,
         cardNumber: payload.cardNumber,
         amount,
@@ -295,17 +295,17 @@ export class TransactionUseCases {
 
   private async getCardByCardNumber(cardNumber: string): Promise<Card | null> {
     const cacheKey = this.cardCacheKey(cardNumber);
-    const cached = await this.dataServices.redisCache.get<Card>(cacheKey);
+    const cached = await this.dataServices.redis.get<Card>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    const card = await this.dataServices.cards.findByCardNumber(cardNumber);
+    const card = await this.dataServices.prisma.cards.findByCardNumber(cardNumber);
     if (!card) {
       return null;
     }
 
-    await this.dataServices.redisCache.set(
+    await this.dataServices.redis.set(
       cacheKey,
       card,
       TransactionUseCases.CARD_CACHE_TTL_SECONDS
@@ -316,17 +316,17 @@ export class TransactionUseCases {
 
   private async getOrganizationById(organizationId: string): Promise<Organization | null> {
     const cacheKey = this.organizationCacheKey(organizationId);
-    const cached = await this.dataServices.redisCache.get<Organization>(cacheKey);
+    const cached = await this.dataServices.redis.get<Organization>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    const organization = await this.dataServices.organizations.findById(organizationId);
+    const organization = await this.dataServices.prisma.organizations.findById(organizationId);
     if (!organization) {
       return null;
     }
 
-    await this.dataServices.redisCache.set(
+    await this.dataServices.redis.set(
       cacheKey,
       organization,
       TransactionUseCases.ORGANIZATION_CACHE_TTL_SECONDS
@@ -350,7 +350,7 @@ export class TransactionUseCases {
     const newBalance = this.factory.fromMinorUnits(previousBalanceMinor - amountMinor);
 
     try {
-      await this.dataServices.redisCache.set(
+      await this.dataServices.redis.set(
         this.organizationCacheKey(organization.id),
         {
           ...organization,
@@ -359,7 +359,7 @@ export class TransactionUseCases {
         TransactionUseCases.ORGANIZATION_CACHE_TTL_SECONDS
       );
 
-      await this.dataServices.redisCache.set(
+      await this.dataServices.redis.set(
         this.cardCacheKey(card.cardNumber),
         card,
         TransactionUseCases.CARD_CACHE_TTL_SECONDS
