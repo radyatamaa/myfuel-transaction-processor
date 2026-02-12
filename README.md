@@ -108,6 +108,7 @@ npm run db:bootstrap
 ## Database
 
 Prisma schema is in `prisma/schema.prisma`.
+Prisma uses datasource provider `postgresql`.
 
 Useful commands:
 
