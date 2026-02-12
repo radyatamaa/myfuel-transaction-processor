@@ -163,7 +163,7 @@ flowchart LR
 
 ## Design Notes
 - Business rejection returns HTTP 200 with `code=REJECTED`.
-- Idempotency uses unique `requestId`. If payload is same, the app returns previous result.
+- Idempotency uses unique `requestId`. If payload is same, the app re-checks card; replay returns `SUCCESS` only for existing approved transaction, otherwise `DUPLICATE_REQUEST`.
 - The app uses DB transaction and row lock for safe concurrent update.
 - History data is saved in `Transaction`, `BalanceLedger`, and `WebhookRejectionLog`.
 - The design can be extended for weekly, vehicle, and organization total limits.
