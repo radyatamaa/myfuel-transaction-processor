@@ -24,10 +24,11 @@ flowchart LR
   CLIENT[Petrol Station / Client] --> CONTROLLER[Controllers]
   CONTROLLER --> USECASE[Use Cases]
   USECASE --> CORE[Core: Entities + Abstractions]
-  INFRA[Infra: Prisma/Cache/Events] --> CORE
-  USECASE --> INFRA
-  INFRA --> DB[(PostgreSQL)]
-  INFRA --> REDIS[(Redis Optional)]
+  USECASE --> DATASVC[DataServices]
+  DATASVC --> PRISMA[Prisma Repositories]
+  DATASVC --> REDIS[Redis Cache]
+  USECASE --> EVENTS[Event Publisher]
+  PRISMA --> DB[(PostgreSQL)]
 ```
 
 Layer mapping:

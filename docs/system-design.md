@@ -12,9 +12,12 @@ flowchart TD
   A[Petrol station sends webhook] --> B[API validates payload and API key]
   B --> C{Duplicate requestId?}
 
-  C -- Yes --> C1[Reject DUPLICATE_REQUEST]
-  C1 --> C2[Save rejection log and publish rejected event]
-  C2 --> Z1[Return HTTP 200 code=REJECTED]
+  C -- Yes --> C1{Same payload?}
+  C1 -- Yes --> C2[Return previous result]
+  C2 --> Z0[Return HTTP 200 code=SUCCESS or REJECTED]
+  C1 -- No --> C3[Reject DUPLICATE_REQUEST]
+  C3 --> C4[Save rejection log and publish rejected event]
+  C4 --> Z1[Return HTTP 200 code=REJECTED]
 
   C -- No --> D[Load card and organization from cache, then DB]
   D --> E{Card is active and organization exists?}
@@ -137,15 +140,16 @@ flowchart LR
   ST[Petrol Station] --> API[NestJS API]
   API --> UC[TransactionUseCases]
   UC --> CORE[Core: entities + abstractions]
-  UC --> INFRA[Prisma + Cache + Events]
-  INFRA --> CORE
-  INFRA --> DB[(PostgreSQL)]
-  INFRA --> REDIS[(Redis Optional)]
+  UC --> DS[DataServices]
+  DS --> PRISMA[Prisma repositories]
+  DS --> REDIS[Redis cache]
+  UC --> EV[Events]
+  PRISMA --> DB[(PostgreSQL)]
 ```
 
 ## Design Notes
 - Business rejection returns HTTP 200 with `code=REJECTED`.
-- Idempotency uses unique `requestId`.
+- Idempotency uses unique `requestId` with safe replay for same payload.
 - Concurrency safety uses DB transaction and row lock.
 - History is saved in `Transaction`, `BalanceLedger`, and `WebhookRejectionLog`.
 - Easy to extend for weekly limit, vehicle limit, and organization aggregate limit.
