@@ -120,6 +120,20 @@ Response style:
 - `code = REJECTED` for business rejection (HTTP 200)
 - 4xx/5xx for validation, auth, or server errors
 
+Signature test via command line (optional):
+```bash
+TS=$(date +%s)
+BODY='{"requestId":"station-abc-20260211-0001","cardNumber":"6037991234561001","amount":350000,"transactionAt":"2026-02-11T09:00:00Z","stationId":"SPBU-12345"}'
+SECRET='your_webhook_signature_secret'
+SIG=$(printf "%s.%s" "$TS" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $2}')
+echo "x-timestamp: $TS"
+echo "x-signature: $SIG"
+```
+
+Use these headers:
+- `x-timestamp: $TS`
+- `x-signature: $SIG`
+
 ## API Documentation
 ![Swagger API Documentation](./swagger.gif)
 
@@ -147,6 +161,20 @@ Important env keys:
 - `REDIS_URL` (optional)
 - `REDIS_KEY_PREFIX` (optional)
 - `REDIS_DB` (optional)
+
+Generate `WEBHOOK_SIGNATURE_SECRET` (optional):
+```bash
+openssl rand -base64 32
+```
+Then put the result into `.env`:
+```env
+WEBHOOK_SIGNATURE_SECRET=your_generated_secret
+```
+
+Quick command (append generated secret to `.env`):
+```bash
+echo "WEBHOOK_SIGNATURE_SECRET=$(openssl rand -base64 32)" >> .env
+```
 
 4. Prepare database
 ```bash

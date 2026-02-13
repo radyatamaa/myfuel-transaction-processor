@@ -2,6 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Logger, Post, Req, UseGuards } 
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiSecurity,
@@ -24,6 +25,24 @@ export class WebhookController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(WebhookApiKeyGuard)
   @ApiSecurity('api-key')
+  @ApiHeader({
+    name: 'x-timestamp',
+    required: false,
+    description: 'Unix timestamp in seconds (required when webhook signature is enabled)',
+    schema: {
+      type: 'string',
+      example: '1739268000'
+    }
+  })
+  @ApiHeader({
+    name: 'x-signature',
+    required: false,
+    description: 'HMAC SHA256 hex digest of "<x-timestamp>.<raw-body>" (required when webhook signature is enabled)',
+    schema: {
+      type: 'string',
+      example: 'e5f11f9ef6f7d2ed6db1cce4bdc90e27e51db2a0c883fcaf6ed4f4f8d1d3a723'
+    }
+  })
   @ApiOperation({ summary: 'Validate and process fuel transaction webhook' })
   @ApiBody({ type: ProcessTransactionDto })
   @ApiOkResponse({
