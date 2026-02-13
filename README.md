@@ -165,3 +165,25 @@ npm test -- --runInBand
 npm run test:e2e -- --runInBand
 npm run build
 ```
+
+## Database Change Flow (Add Table or Field)
+1. Update Prisma schema in `prisma/schema.prisma`.
+2. Create migration:
+```bash
+npm run prisma:migrate -- --name add_xxx
+```
+3. Regenerate Prisma client:
+```bash
+npm run prisma:generate
+```
+4. Update code layers if needed:
+- Prisma repositories in `src/frameworks/data-services/prisma/repositories`
+- Core entity/DTO/use-case if business logic uses the new field
+5. Update tests (unit and e2e if API contract changes).
+6. Update docs (`docs/system-design.md` ERD and README API section if needed).
+7. Run final checks:
+```bash
+npm run lint
+npm test -- --runInBand
+npm run build
+```
